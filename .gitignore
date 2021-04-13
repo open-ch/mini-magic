@@ -25,13 +25,11 @@ Build.bat
 inc/
 
 # MIME type definitions and file
-/Magdir
+Magdir/
 magic
 *.mgc
-/samples
-/.temp
-/content.proxytest.labs.open.ch
-/file-5.39
+.temp/
+file-*/
 
 # Docker
 .devcontainer.json
