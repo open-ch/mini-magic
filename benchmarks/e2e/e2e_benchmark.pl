@@ -95,3 +95,5 @@ cmpthese(-$TIME, {
         compile_db(\@all_list, "all");
     }
 })
+
+_clean();
