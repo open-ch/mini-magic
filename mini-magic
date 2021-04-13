@@ -21,17 +21,19 @@ use FindBin qw($Bin);
 use lib "$Bin/lib";
 use Getopt::Long qw(:config posix_default no_ignore_case);
 use MimeType;
-use Log::Any qw( $log );
-use Log::Any::OSAG;
+use Log::Any qw($log);
+use Log::Log4perl;
+use Log::Log4perl::Level;
+use Log::Any::Adapter;
 use Cwd qw(abs_path);
 
 my $download = 0;
 my $list     = 0;
 my @mime_types;
 my $debug      = 0;
-my $version    = "5.39";
-my $src_dir    = "Magdir";
-my $magic_name = "magic";
+my $version    = "";
+my $src_dir    = "";
+my $magic_name = "";
 my $all        = 0;
 my $file_name  = "";
 
@@ -48,7 +50,7 @@ sub check_args {
     }
 
     print_help() unless $set;
-
+    
     # Check if the optional arguments are correct
     if ( @mime_types || $all || $file_name ) {
         print_help() if $version;
@@ -91,6 +93,22 @@ sub print_help {
     exit 1;
 }
 
+sub configure_log {
+    my $arg_level = ($debug) ? "DEBUG" : "INFO";
+    my %conf = (
+        "log4perl.logger" => $arg_level,
+    );
+    $conf{'log4perl.appender.Screen'}           = 'Log::Dispatch::Screen';
+    $conf{'log4perl.appender.Screen.layout'}    = 'Log::Log4perl::Layout::PatternLayout';
+    $conf{'log4perl.appender.Screen.layout.ConversionPattern'} = "%d mini-magic\[%P]: [%p] %m%n";
+    $conf{'log4perl.appender.Screen.stderr'}    = 0;
+    $conf{'log4perl.logger'} .= ', Screen';
+
+    # Configure Log4perl and Log::Any
+    Log::Log4perl::init(\%conf);
+    Log::Any::Adapter->set('Log::Log4perl');
+}
+
 # Command-line argument processing
 GetOptions(
     "download|d"    => \$download,
@@ -106,9 +124,16 @@ GetOptions(
 ) or print_help();
 
 @mime_types = split( /,/, join( ',', @mime_types ) );
-
 check_args();
+$version    = ($version)?$version:"5.39";
+$src_dir    = ($src_dir)?$src_dir:"Magdir";
+$magic_name = ($magic_name)?$magic_name:"magic";
 
+configure_log();
+
+if ($download) {
+    MimeType::download_magic_files( abs_path($src_dir), $version );
+}
 if ($file_name) {
     $file_name = abs_path($file_name);
     die "$file_name does not exist" if ( !-f $file_name );
@@ -122,16 +147,6 @@ if ($file_name) {
     close($fh);
 }
 
-if ($debug) {
-    Log::Any::OSAG->configure( level => 'debug', syslog => 0, screen => 1 );
-}
-else {
-    Log::Any::OSAG->configure( level => 'info', syslog => 0, screen => 1 );
-}
-
-if ($download) {
-    MimeType::download_magic_files( abs_path($src_dir), $version );
-}
 
 if ($list) {
     MimeType::print_list_mime_types( abs_path($src_dir) );

@@ -1,10 +1,35 @@
-# MiniMagicDB
+# mini-magic
 
-This repository contains the code for the `MiniMagicDB` project. The goal of this project is to easily build a minimal magic database. This minimal database only contains the tests needed to identify a list of given MIME types. The rationale behind this project is to speed up the search performed by `libmagic` when the goal is to only identify the MIME type of the file (possibly only among a subset of all available MIME types).
+This repository contains the code for the `mini-magic` project. The goal of this
+project is to easily build a minimal magic database. This minimal database only
+contains the tests needed to identify a list of given MIME types. The rationale
+behind this project is to speed up the search performed by `libmagic` when the
+goal is to only identify a subset of MIME types. 
 
-## Prerequisites
+## Required modules
 
-All the code of this repository is written in `perl`.
+This project is mainly written in `perl 5.28` and requires some additional modules.
+
+### Log::Any
+
+[Log::Any](https://metacpan.org/pod/Log::Any) provides a standard log production
+API for modules. The modules `Log::Any::Adapter::Dispatch`, `Log::Log4perl`
+and `Log::Any::Adapter::Log4perl` are also required.
+
+### Const::Fast
+
+[Const::Fast](https://metacpan.org/pod/distribution/Const-Fast/lib/Const/Fast.pm)
+facilitates the creation of read-only scalars, arrays, and hashes.
+
+### IPC::Run
+
+[IPC::Run](https://metacpan.org/pod/IPC::Run) allows you to run and interact 
+with child processes using files, pipes, and pseudo-ttys.
+
+### LWP::Simple
+
+[LWP::Simple](https://metacpan.org/pod/LWP::Simple) provides a simplified view 
+of the libwww-perl library.
 
 ## Scripts
 
