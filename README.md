@@ -35,10 +35,18 @@ of the libwww-perl library.
 
 ### mini-magic
 
-This is the main tool of the repository. Its main purpose is to take a list of MIME types and create a minimal magic database by removing all unnecessary tests. More detail with `mini-magic -h`
+This is the main tool of the repository. Its main purpose is to take a list of 
+MIME types and create a magic file containing the least tests possible to detect
+all MIME types listed. With this script you can also download the MIME type definitions
+from the [official repository](http://ftp.astron.com/pub/file/) and list all
+MIME types available to create the minimal magic file. More detail with `mini-magic -h`
 
+### Tests
 
-### benchmarks
+The tests are located in `mini-magic/tests`. You can find the unit tests in
+`mini-magic/tests/t` and the end-to-end tests in `mini-magic/tests/e2e`. 
+
+### Benchmarks
 
 #### Module benchmarks
 
