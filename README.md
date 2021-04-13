@@ -40,6 +40,8 @@ MIME types and create a magic file containing the least tests possible to detect
 all MIME types listed. With this script you can also download the MIME type definitions
 from the [official repository](http://ftp.astron.com/pub/file/) and list all
 MIME types available to create the minimal magic file. More detail with `mini-magic -h`
+A module is also provided at `mini-magic/lib` in case you need the functionality
+of the CLI without using the CLI itself.
 
 ### Tests
 
@@ -48,10 +50,6 @@ The tests are located in `mini-magic/tests`. You can find the unit tests in
 
 ### Benchmarks
 
-#### Module benchmarks
-
-`benchmarks/benchmark.pl` is a script that can be used to benchmark the different parts of the MimeType module. More detail with `perl benchmarks/benchmark.pl -h`
-
-#### End-to-end benchmarks
-
-`benchmarks/e2e/e2e_benchmark.pl` is a script that can be used to benchmark the whole process of compiling a minimal magic database, i.e., filtering the tests and then use the file command to get the compiled minimal magic database. The test scenarios are in `benchmarks/e2e/mime-lists`. More detail with `perl benchmarks/e2e/e2e_benchmark.pl -h`
+The benchmakrs are located in `mini-magic/benchmarks`. As for the tests, you can
+find end-to-end benchmarks at `mini-magic/benchmarks/e2e` and benchmarks of specific 
+parts of the modules in `mini-magic/lib` at `mini-magic/benchmarks/mod`.
