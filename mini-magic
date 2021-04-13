@@ -1,0 +1,149 @@
+#!/usr/bin/perl
+###############################################################################
+#
+# mini-magic: CLI tool to help building a minimal magic databases
+#
+# Copyright (c) 2021 Open Systems AG, Switzerland
+# All Rights Reserved.
+#
+# This tool allows you to take several MIME type definitions and, given a list
+# of MIME types, remove all the unnecessary tests. The created magic file can
+# then be compiled with the file command. This tool also offers other features such
+# as downloading the MIME type definitions from the official repository or list
+# all the MIME types for which a test is available.
+#
+###############################################################################
+
+use v5.28;
+use warnings;
+
+use FindBin qw($Bin);
+use lib "$Bin/lib";
+use Getopt::Long qw(:config posix_default no_ignore_case);
+use MimeType;
+use Log::Any qw( $log );
+use Log::Any::OSAG;
+use Cwd qw(abs_path);
+
+my $download = 0;
+my $list     = 0;
+my @mime_types;
+my $debug      = 0;
+my $version    = "5.39";
+my $src_dir    = "Magdir";
+my $magic_name = "magic";
+my $all        = 0;
+my $file_name  = "";
+
+sub check_args {
+    my @main_args = ( $download, $list, @mime_types, $all, $file_name );
+    my $set       = 0;
+
+    #Check that one and only one of the main flags is set
+    for my $arg (@main_args) {
+        if ($arg) {
+            print_help() if $set;
+            $set = 1;
+        }
+    }
+
+    print_help() unless $set;
+
+    # Check if the optional arguments are correct
+    if ( @mime_types || $all || $file_name ) {
+        print_help() if $version;
+    }
+    elsif ($download) {
+        print_help() if $magic_name;
+    }
+    elsif ($list) {
+        print_help() if $version || $magic_name;
+    }
+}
+
+# Print command line usage help text
+sub print_help {
+    print "Usage:
+    mini-magic --mime type1,type2,...,typeN [<OPTIONAL PARAMETERS>]
+    mini-magic --all [<OPTIONAL PARAMETERS>]
+    mini-magic --from-file file [<OPTIONAL PARAMETERS>]
+    mini-magic --list [<OPTIONAL PARAMETERS>]
+    mini-magic --download [<OPTIONAL PARAMETERS>]
+    mini-magic --help
+
+    --mime type1,type2,...,typeN    Creates a magic file containing the tests needed to detect the MIME types type1 to typeN. 
+                                    This magic file is not compiled. To do so, use the file command (with the appropriate version) as follow:
+                                    file -C -m /path/to/magic_file	
+    -a|--all                        Creates a magic file with all available MIME types.
+    -f|--from-file file             Create a magic file with the tests corresponding to the list of MIME types in file.
+                                    In file, each line correspond to a MIME type.
+    -l|--list                       Prints all the MIME types defined by the tests in the source directory for MIME type definitions.
+    -d|--download                   Download the MIME type definitions from http://ftp.astron.com/pub/file/ with a given version and save it to the source directory for MIME type definitions.
+    -h|--help                       Print this help message.
+
+    OPTIONAL PARAMETERS:
+    
+    --debug                         More verbose output (to stdout not syslog).
+    --version                       Libmagic version (default 5.39). This optional parameter is only used with --download.
+    --src                           MIME type source directory (default Magdir/).
+    --magic-name                    Name of the created magic file (default magic). This optional parameter is only used with --mime, --all and --from-file.
+";
+    exit 1;
+}
+
+# Command-line argument processing
+GetOptions(
+    "download|d"    => \$download,
+    "list|l"        => \$list,
+    "mime=s"        => \@mime_types,
+    "all|a"         => \$all,
+    "from-file|f=s" => \$file_name,
+    "version=s"     => \$version,
+    "src=s"         => \$src_dir,
+    "magic-name=s"  => \$magic_name,
+    "debug"         => \$debug,
+    "help|h"        => \&print_help,
+) or print_help();
+
+@mime_types = split( /,/, join( ',', @mime_types ) );
+
+check_args();
+
+if ($file_name) {
+    $file_name = abs_path($file_name);
+    die "$file_name does not exist" if ( !-f $file_name );
+
+    open( my $fh, '<', $file_name );
+    while ( my $line = <$fh> ) {
+        chomp($line);
+        next if !$line;
+        push @mime_types, $line;
+    }
+    close($fh);
+}
+
+if ($debug) {
+    Log::Any::OSAG->configure( level => 'debug', syslog => 0, screen => 1 );
+}
+else {
+    Log::Any::OSAG->configure( level => 'info', syslog => 0, screen => 1 );
+}
+
+if ($download) {
+    MimeType::download_magic_files( abs_path($src_dir), $version );
+}
+
+if ($list) {
+    MimeType::print_list_mime_types( abs_path($src_dir) );
+}
+
+if ($all) {
+    my $mime_list = MimeType::list_mime_types( abs_path($src_dir) );
+    MimeType::create_mini_magic_file( $mime_list, abs_path($src_dir),
+        abs_path($magic_name) );
+}
+elsif (@mime_types) {
+    MimeType::create_mini_magic_file( \@mime_types, abs_path($src_dir),
+        abs_path($magic_name) );
+}
+
