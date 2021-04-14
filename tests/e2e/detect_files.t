@@ -6,7 +6,7 @@
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
 #
-# This test compares the results of the file command with a custom magic db against
+# This test compares the results of the file command with a minimal magic db against
 # the default one.
 #
 # Know issue: with the version 5.36 of libmagic 2 test cases are failing,
