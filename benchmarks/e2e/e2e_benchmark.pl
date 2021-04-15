@@ -14,7 +14,7 @@ use warnings;
 
 use FindBin qw($Bin);
 use lib "$Bin/../../lib";
-use MimeType;
+use MiniMagic;
 use Benchmark qw/cmpthese/;
 use Const::Fast;
 use File::Path;
@@ -43,6 +43,15 @@ sub get_file_version {
     }
 }
 
+# Function we want to benchmark
+sub compile_db {
+    my $mime_list = shift;
+    my $suffix    = shift;
+    my $out       = $MAGIC . $suffix;
+    MiniMagic::create_mini_magic_file( $mime_list, $MAGDIR, "$TMP_FILE/$out" );
+    system("file -C -m $out");
+}
+
 my $file_version = get_file_version();
 die "No version for the file command found" unless $file_version;
 
@@ -51,7 +60,7 @@ _clean();
 mkdir($TMP_FILE) or die "Impossible to create directory $TMP_FILE: $!";
 
 # Get all MIME types version 5.39
-MimeType::download_magic_files( $MAGDIR, $file_version );
+MiniMagic::download_magic_files( $MAGDIR, $file_version );
 
 # Get MIME type lists
 my @thirteen_list;
@@ -70,18 +79,9 @@ while ( my $line = <$fh> ) {
 }
 close($fh);
 
-my @all_list = @{ MimeType::list_mime_types($MAGDIR) };
+my @all_list = @{ MiniMagic::list_mime_types($MAGDIR) };
 
-# Function we want to benchmark
-sub compile_db {
-    my $mime_list = shift;
-    my $suffix    = shift;
-    my $out       = $MAGIC . $suffix;
-    MimeType::create_mini_magic_file( $mime_list, $MAGDIR, "$TMP_FILE/$out" );
-    chdir($TMP_FILE);
-    system("file -C -m $out");
-}
-
+chdir($TMP_FILE);
 cmpthese(
     -$TIME,
     {
@@ -95,6 +95,7 @@ cmpthese(
             compile_db( \@all_list, "all" );
         }
     }
-  )
+  );
 
-  _clean();
+chdir($Bin);
+_clean();

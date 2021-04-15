@@ -20,7 +20,7 @@ use warnings;
 use FindBin qw($Bin);
 use lib "$Bin/lib";
 use Getopt::Long qw(:config posix_default no_ignore_case);
-use MimeType;
+use MiniMagic;
 use Log::Any qw($log);
 use Log::Log4perl;
 use Log::Log4perl::Level;
@@ -132,7 +132,7 @@ $magic_name = ($magic_name) ? $magic_name : "magic";
 configure_log();
 
 if ($download) {
-    MimeType::download_magic_files( abs_path($src_dir), $version );
+    MiniMagic::download_magic_files( abs_path($src_dir), $version );
 }
 if ($file_name) {
     $file_name = abs_path($file_name);
@@ -148,16 +148,16 @@ if ($file_name) {
 }
 
 if ($list) {
-    MimeType::print_list_mime_types( abs_path($src_dir) );
+    MiniMagic::print_list_mime_types( abs_path($src_dir) );
 }
 
 if ($all) {
-    my $mime_list = MimeType::list_mime_types( abs_path($src_dir) );
-    MimeType::create_mini_magic_file( $mime_list, abs_path($src_dir),
+    my $mime_list = MiniMagic::list_mime_types( abs_path($src_dir) );
+    MiniMagic::create_mini_magic_file( $mime_list, abs_path($src_dir),
         abs_path($magic_name) );
 }
 elsif (@mime_types) {
-    MimeType::create_mini_magic_file( \@mime_types, abs_path($src_dir),
+    MiniMagic::create_mini_magic_file( \@mime_types, abs_path($src_dir),
         abs_path($magic_name) );
 }
 

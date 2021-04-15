@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ###############################################################################
 #
-# test.pl: Test for MimeType module
+# test.pl: Test for MiniMagic module
 #
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
@@ -22,7 +22,7 @@ use lib "$Bin/../../lib";
 use Const::Fast;
 use File::Path;
 use File::Copy;
-use MimeType;
+use MiniMagic;
 use Test::More;
 
 const my $TEST_FILES => "$Bin/test_files";
@@ -61,7 +61,7 @@ my $file_version = _get_file_version();
 _clean();
 
 # Download MIME type definitions
-MimeType::download_magic_files( $MAGDIR, $file_version );
+MiniMagic::download_magic_files( $MAGDIR, $file_version );
 
 # Compile magic database with all definitions
 system("file -C -m $MAGDIR; mv $MAGDIR.mgc $DEFAULT_DB")
@@ -78,7 +78,7 @@ for my $file (@files) {
 }
 
 # Create minimal DB
-MimeType::create_mini_magic_file( \@mime_types, $MAGDIR, $MIME_FILE );
+MiniMagic::create_mini_magic_file( \@mime_types, $MAGDIR, $MIME_FILE );
 system("file -C -m $MIME_FILE")
   ; # or die "impossible to compile minimal magic database with MIME type definitions at $MIME_FILE: $!";
 

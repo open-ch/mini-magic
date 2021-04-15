@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ###############################################################################
 #
-# loopy_graph.t: Test for MimeType module
+# loopy_graph.t: Test for MiniMagic module
 #
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
@@ -15,7 +15,7 @@ use warnings;
 use FindBin qw($Bin);
 use lib "$Bin/../../lib";
 use Test::More tests => 2;
-use MimeType;
+use MiniMagic;
 
 # build_input builds the binary tree used as input for the function _traverse_tests_tree
 # It returns:
@@ -61,7 +61,7 @@ sub build_input {
 
 my ( $root, $named_tests ) = build_input();
 my ( $save, $discovered_ref ) =
-  MimeType::_traverse_tests_tree( $root, $named_tests );
+  MiniMagic::_traverse_tests_tree( $root, $named_tests );
 
 my $nbr_discovered_tests = keys %{$discovered_ref};
 

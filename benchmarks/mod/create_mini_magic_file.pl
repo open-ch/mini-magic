@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ###############################################################################
 #
-# benchmark.pl: benchmark script for MimeType::create_mini_magic_file
+# benchmark.pl: benchmark script for MiniMagic::create_mini_magic_file
 #
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
@@ -13,7 +13,7 @@ use warnings;
 
 use FindBin qw($Bin);
 use lib "$Bin/../../lib";
-use MimeType;
+use MiniMagic;
 use Const::Fast;
 use File::Path;
 use List::Util 'shuffle';
@@ -37,8 +37,8 @@ _clean();
 mkdir($TMP_FILE) or die "Impossible to create directory $TMP_FILE: $!";
 
 # Get all MIME types version 5.39
-MimeType::download_magic_files( $MAGDIR, "5.39" );
-my $mime_list     = MimeType::list_mime_types($MAGDIR);
+MiniMagic::download_magic_files( $MAGDIR, "5.39" );
+my $mime_list     = MiniMagic::list_mime_types($MAGDIR);
 my @shuffled_list = shuffle(@$mime_list);
 my $nbr_mimes     = @shuffled_list;
 
@@ -51,14 +51,14 @@ for my $offset ( 1 .. $max_offset ) {
     my $last_index = $offset * $step;
     my @sub        = @shuffled_list[ 0 .. $last_index ];
     $benchs->{$last_index} = sub {
-        MimeType::create_mini_magic_file( \@sub, $MAGDIR,
+        MiniMagic::create_mini_magic_file( \@sub, $MAGDIR,
             "$TMP_FILE/$last_index" );
     };
 }
 
 if ( $max_offset * $step < $nbr_mimes ) {
     $benchs->{"all"} = sub {
-        MimeType::create_mini_magic_file( \@shuffled_list, $MAGDIR,
+        MiniMagic::create_mini_magic_file( \@shuffled_list, $MAGDIR,
             "$TMP_FILE/all" );
     };
 }

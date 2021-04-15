@@ -1,55 +1,123 @@
 # mini-magic
 
-This repository contains the code for the `mini-magic` project. The goal of this
-project is to easily build a minimal magic database. This minimal database only
-contains the tests needed to identify a list of given MIME types. The rationale
-behind this project is to speed up the search performed by `libmagic` when the
-goal is to only identify a subset of MIME types. 
+[![license](https://img.shields.io/github/license/:user/:repo.svg)](LICENSE)
 
-## Required modules
+> Remove unnecessary tests from a magic database to speed up MIME type detection
+> with libmagic
 
-This project is mainly written in `perl 5.28` and requires some additional modules.
+## Background
 
-### Log::Any
+Sometimes, you might want to know exactly what the type of a file is. This might be
+particularly relevant in a security context where you cannot rely solely on file 
+extensions. One way to do that is to use 
+[libmagic](https://man7.org/linux/man-pages/man3/libmagic.3.html) (and its command
+[file](https://man7.org/linux/man-pages/man1/file.1.html)) and try to detect
+the [MIME type](https://en.wikipedia.org/wiki/Media_type) of the file. To achieve
+this task, libmagic relies on [magic files](https://man7.org/linux/man-pages/man4/magic.4.html),
+often called `magic.mgc` on linux distributions, containing heuristic tests.
 
-[Log::Any](https://metacpan.org/pod/Log::Any) provides a standard log production
-API for modules. The modules `Log::Any::Adapter::Dispatch`, `Log::Log4perl`
-and `Log::Any::Adapter::Log4perl` are also required.
+Going through the tests to determine the MIME type of one file is already a long
+and resource intensive process. Now imagine, you want to block some file types, on the fly,
+before they can harm the devices on your network. This requires repeating this process
+hundreds or even thousands of times in short lapses of time. That is the reason we
+started this project. **We wanted to speed up the search performed by libmagic
+when the goal is to identify only a subset of MIME types.** To achieve our goal,
+we take the [official magic files](https://github.com/file/file/tree/master/magic/Magdir)
+and remove all the unnecessary tests for the detection of the MIME types we are interested in.
 
-### Const::Fast
+## Usage
 
-[Const::Fast](https://metacpan.org/pod/distribution/Const-Fast/lib/Const/Fast.pm)
-facilitates the creation of read-only scalars, arrays, and hashes.
+```perl
 
-### IPC::Run
+# list of MIME types you want to detect
+my $mime_types = ["application/pdf", "application/x-executable"];
 
-[IPC::Run](https://metacpan.org/pod/IPC::Run) allows you to run and interact 
-with child processes using files, pipes, and pseudo-ttys.
+# path to the directory containing the magic files
+my $src_dir = "Magdir";
 
-### LWP::Simple
+# name of the mini magic file containing only the necessary tests
+my $magic_name = "mini_magic";
 
-[LWP::Simple](https://metacpan.org/pod/LWP::Simple) provides a simplified view 
-of the libwww-perl library.
+create_mini_magic_file($mime_types, $src_dir, $magic_name);
+```
 
-## Scripts
+This creates the magic file `mini_magic`. It can either be used as is by libmagic:
 
-### mini-magic
+```bash
+# -i causes the file command to output mime type strings
+file -m mini_magic some_file -i
+```
 
-This is the main tool of the repository. Its main purpose is to take a list of 
-MIME types and create a magic file containing the least tests possible to detect
-all MIME types listed. With this script you can also download the MIME type definitions
-from the [official repository](http://ftp.astron.com/pub/file/) and list all
-MIME types available to create the minimal magic file. More detail with `mini-magic -h`
-A module is also provided at `mini-magic/lib` in case you need the functionality
-of the CLI without using the CLI itself.
+or it can be first compiled to further improve the performance:
 
-### Tests
+```bash
+file -C -m mini_magic
+```
 
-The tests are located in `mini-magic/tests`. You can find the unit tests in
-`mini-magic/tests/t` and the end-to-end tests in `mini-magic/tests/e2e`. 
+This produces the compiled magic database `mini_magic.mgc`.
 
-### Benchmarks
+We also provide a CLI tool that achieves the same result as the code snippet with:
 
-The benchmakrs are located in `mini-magic/benchmarks`. As for the tests, you can
-find end-to-end benchmarks at `mini-magic/benchmarks/e2e` and benchmarks of specific 
-parts of the modules in `mini-magic/lib` at `mini-magic/benchmarks/mod`.
+```bash
+mini-magic --mime application/pdf,application/x-executable --src Magdir --magic-name mini_magic
+```
+
+For more details on the CLI capabilities and options use the flag `--help`.
+
+## API
+
+```perl
+use MiniMagic qw/create_mini_magic_file download_magic_files list_mime_types print_list_mime_types/;
+```
+
+### create_mini_magic_file($mime_types, $src_dir, $magic_name)
+
+`create_mini_magic_file` creates a magic file called `$magic_name` containing
+all tests needed to detect the MIME types listed in the (referenced) array
+`$mime_types`. For this, it uses the definition located at `$src_dir`.
+
+### download_magic_files($src_dir, $version)
+
+`download_magic_files` downloads all the magic files compatible with
+libmagic version `$version` from the [official repository]("http://ftp.astron.com/pub/file/") 
+and save them to the directory `$src_dir`.
+
+### list_mime_types($src_dir)
+
+`list_mime_types` creates a (referenced) array containing all MIME types covered
+by the magic files in the directory `$src_dir`.
+
+### print_list_mime_types($src_dir)
+
+`print_list_mime_types` prints all MIME types covered by the magic files in 
+the directory `$src_dir`.
+
+### benchmarks and tests
+
+- [Tests](./tests) - unit and e2e tests
+- [Benchmark](./benchmarks) - module and e2e benchmarks
+
+All tests and benchmarks can be run as follow:
+
+```bash
+perl name_script.pl
+```
+
+## Install
+
+The module `MiniMagic` (and the CLI tool `mini-magic`) requires `perl 5.28` 
+to function properly. In addition to that, you might need to 
+[install](https://www.cpan.org/modules/INSTALL.html) the following additional
+modules:
+
+- Log::Any
+- Log::Any::Adapter::Dispatch
+- Log::Log4perl
+- Log::Any::Adapter::Log4perl
+- Const::Fast
+- IPC::Run
+- LWP::Simple
+
+## License
+
+[Apache License 2.0](LICENSE)

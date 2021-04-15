@@ -1,6 +1,6 @@
 ###############################################################################
 #
-# MimeType.pm: module to download MIME types from the official libmagic repository,
+# MiniMagic.pm: module to download MIME types from the official libmagic repository,
 # list the available MIME types and filter the tests in the MIME type definitions
 # depending on a list of MIME types.
 #
@@ -13,7 +13,7 @@
 #
 ###############################################################################
 
-package MimeType;
+package MiniMagic;
 
 use v5.28;
 use warnings;

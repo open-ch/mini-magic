@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 ###############################################################################
 #
-# simple_chain.t: Test for MimeType module
+# simple_chain.t: Test for MiniMagic module
 #
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
@@ -17,7 +17,7 @@ use warnings;
 use FindBin qw($Bin);
 use lib "$Bin/../../lib";
 use Test::More tests => 8;
-use MimeType;
+use MiniMagic;
 
 for my $test_index ( 0 .. 3 ) {
 
@@ -47,7 +47,7 @@ for my $test_index ( 0 .. 3 ) {
     my %named_tests = ( "callee" => $callee );
 
     my ( $save, $discovered_ref ) =
-      MimeType::_traverse_tests_tree( $caller, \%named_tests );
+      MiniMagic::_traverse_tests_tree( $caller, \%named_tests );
 
     ok(
         ( $caller_mime_type || $callee_mime_type ) == $save,
