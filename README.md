@@ -130,6 +130,7 @@ modules:
 - LWP::Simple
 - Archive::Extract
 - File::Slurper
+- File::Copy::Recursive
 
 ## License
 

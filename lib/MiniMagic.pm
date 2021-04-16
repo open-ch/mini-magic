@@ -21,11 +21,11 @@ use warnings;
 use Log::Any qw($log);
 use Const::Fast;
 use File::Path;
-use File::Copy;
 use LWP::Simple qw(get);
 use IPC::Run qw(run);
 use File::Slurper qw(write_binary);
 use Archive::Extract;
+use File::Copy::Recursive qw(dircopy);
 
 # URL of the MIME type definitions for libmagic
 const my $FILE_REPO_URL => 'http://ftp.astron.com/pub/file/';
@@ -57,16 +57,8 @@ sub download_magic_files {
     # Extract Magdir to sources
     $log->debug("extract $file_dir/magic/Magdir to $src_dir");
     my $ae = Archive::Extract->new(archive => $tar_file);
-    $ae->extract();
- 
-    
-    # my ( $input, $output, $error );
-    # run [ "tar", "-xzf", $tar_file, "$file_dir/magic/Magdir" ], \$input,
-    #   \$output, \$error;
-    # die "could not extract Magdir from file folder: $error" if $error;
-
-    # system("cp -r $file_dir/magic/Magdir/ $src_dir");
-    # $log->info("MIME type definitions saved to $src_dir");
+    $ae->extract() or die "Could not extract $file_dir: $!";
+    dircopy("$file_dir/magic/Magdir/", $src_dir) or die "Could not copy $file_dir/magic/Magdir/ to $src_dir: $!";
 
     # clean downloaded files
     rmtree($file_dir) or die "Could not remove downloaded $file_dir directory: $!";
