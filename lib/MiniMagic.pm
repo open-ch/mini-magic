@@ -54,7 +54,7 @@ sub download_magic_files {
     write_binary($tar_file, get($url));
     $log->debug("file from $url saved at $tar_file");
 
-    # Extract Magdir to sources
+    # Extract Magdir to source
     $log->debug("extract $file_dir/magic/Magdir to $src_dir");
     my $ae = Archive::Extract->new(archive => $tar_file);
     $ae->extract() or die "Could not extract $file_dir: $!";
@@ -64,6 +64,7 @@ sub download_magic_files {
     rmtree($file_dir) or die "Could not remove downloaded $file_dir directory: $!";
     unlink($tar_file) or die "Could not remove downloaded $tar_file file: $!";
 
+    return;
 }
 
 
@@ -85,7 +86,7 @@ sub list_mime_types {
         while ( my $line = readline($fh) ) {
             if ( $line =~ /^!:mime/ ) {
                 $line =~ /($MIME_TYPE_REGEX)/;
-                $mime_types{$1} = 1;
+                $mime_types{$1} = 1 if($1);
             }
         }
 
@@ -130,13 +131,13 @@ sub create_mini_magic_file {
     my ( $mime_array, $src_dir, $magic_file ) = @_;
 
     # Check if the directory with the MIME type definitions exists
-    die
-"$src_dir was not found, impossible to list the MIME types contained in it"
-      if ( !-d $src_dir );
+    if ( !-d $src_dir ){
+        die "$src_dir was not found, impossible to list the MIME types contained in it" ;
+    }
 
     # Remove existing magic file
     if ( -e $magic_file ) {
-        unlink $magic_file;
+        unlink $magic_file or die "impossible to remove $magic_file: $!";
     }
 
     # Create set of MIME types used for filtering
@@ -145,20 +146,17 @@ sub create_mini_magic_file {
         $mime_types{$mime} = 0;
     }
 
-# Array containing all (references of the hash of) the tests that were not filtered out
+    # Array containing all (references of the hash of) the tests that were not filtered out
     my @tests;
 
-# Maps the name of a named test to its hash structure (same reference as in the array @tests)
+    # Maps the name of a named test to its hash structure (same reference as in the array @tests)
     my %named_tests;
 
-    my $total_nbr_tests =
-      _parse_mime_files( \@tests, \%named_tests, \%mime_types, $src_dir );
+    my $total_nbr_tests = _parse_mime_files( \@tests, \%named_tests, \%mime_types, $src_dir );
 
     my $nbr_tests       = @tests;
     my $nbr_named_tests = keys %named_tests;
-    $log->debug(
-"$nbr_tests tests remaining after first traversal where $nbr_named_tests have type name"
-    );
+    $log->debug( "$nbr_tests tests remaining after first traversal where $nbr_named_tests have type name" );
 
     for my $mime ( keys %mime_types ) {
         if ( !$mime_types{$mime} ) {
@@ -167,9 +165,7 @@ sub create_mini_magic_file {
     }
 
     my $nbr_saved_tests = _save_tests( \@tests, \%named_tests, $magic_file );
-    $log->info( $nbr_saved_tests . "/"
-          . $total_nbr_tests
-          . " tests were save to $magic_file" );
+    $log->info( "$nbr_saved_tests/$total_nbr_tests tests were save to $magic_file" );
 
     return $nbr_saved_tests;
 }
@@ -189,23 +185,18 @@ sub _save_tests {
     open( $write_handler, ">>", $magic_file ) or die $!;
     for my $test (@$tests) {
 
-# Test only contains a listed MIME type and neither calls or is called by another test
-        if (   $test->{"mime"}
-            && !$test->{"saved"}
-            && !@{ $test->{"use"} }
-            && !@{ $test->{"name"} } )
-        {
+        # Test only contains a listed MIME type and neither calls or is called by another test
+        if ( $test->{"mime"} && !$test->{"saved"} && !@{ $test->{"use"} } && !@{ $test->{"name"} } ) {
             print $write_handler $test->{"body"} . "\n";
             $test->{"saved"} = 1;
             $saved_tests++;
         }
 
-# Test is the root of the tree test.
-# This means that this test calls at least another test (that might call another test etc).
-# We need to check wether or not one (or more) test(s) in the tree starting at the root must be saved, and if it is the case all tests in the tree are saved.
+        # Test is the root of the tree test.
+        # This means that this test calls at least another test (that might call another test etc).
+        # We need to check wether or not one (or more) test(s) in the tree starting at the root must be saved, and if it is the case all tests in the tree are saved.
         if ( @{ $test->{"use"} } && !@{ $test->{"name"} } ) {
-            my ( $save, $discovered ) =
-              _traverse_tests_tree( $test, $named_tests );
+            my ( $save, $discovered ) = _traverse_tests_tree( $test, $named_tests );
 
             if ($save) {
 
@@ -260,7 +251,7 @@ sub _traverse_tests_tree {
         }
     }
 
-# BFS loop. It traverses the graph formed by the tests. Each test is traversed once (and only once).
+    # BFS loop. It traverses the graph formed by the tests. Each test is traversed once (and only once).
     while (@queue) {
         my $name        = shift @queue;
         my $called_test = $named_tests->{$name};
@@ -293,11 +284,8 @@ sub _filter_test {
 
     my ( $current_test, $named_tests, $tests ) = @_;
 
-# Only keep a test if it has a desired MIME type, it calls another test or it is called by another test
-    if (   $current_test->{"mime"}
-        || @{ $current_test->{"name"} }
-        || @{ $current_test->{"use"} } )
-    {
+    # Only keep a test if it has a desired MIME type, it calls another test or it is called by another test
+    if ( $current_test->{"mime"} || @{ $current_test->{"name"} } || @{ $current_test->{"use"} } ) {
         push @$tests, $current_test;
         if ( @{ $current_test->{"name"} } ) {
             for my $name ( @{ $current_test->{"name"} } ) {
@@ -325,23 +313,21 @@ sub _parse_mime_files {
     my $total_nbr_tests = 0;
 
     $log->debug("parsing files at $src_dir");
-    for my $file (<$src_dir/*>) {
+    for my $file (glob("$src_dir/*")) {
         my $read_handler;
         open( $read_handler, "<", $file ) or die $!;
 
         # Create new test hash reference
         my $current_test = {
-            "body" => "",    # Contains the test (text)
-            "mime" => ""
-            , # The MIME type of the test (only if it is one of the listed ones)
-            "name" => [],    # Name(s) of the test.
-             # A test might contain more than one type "name" (see x8192 in pgp)
-            "use"   => [],    # The names of the tests that $current_test calls
-            "saved" =>
-              0,    # Indicates if the test was already saved to the magic file.
+            "body"  => "",  # Contains the test (text)
+            "mime"  => "",  # The MIME type of the test (only if it is one of the listed ones)
+            "name"  => [],  # Name(s) of the test.
+                            # A test might contain more than one type "name" (see x8192 in pgp)
+            "use"   => [],  # The names of the tests that $current_test calls
+            "saved" =>0,    # Indicates if the test was already saved to the magic file.
         };
 
-        while ( my $line = <$read_handler> ) {
+        while ( my $line = readline($read_handler) ) {
 
             # Skip comments and blank lines
             if ( !( $line =~ /^#|^\s+#/ || $line =~ /^\n|\r/ ) ) {
@@ -366,16 +352,12 @@ sub _parse_mime_files {
 
                 # Type of the line is use, i.e., the test calls another test
                 # Ex: >0	use		pdf
-                if (   $split_line[1]
-                    && $split_line[2]
-                    && $split_line[1] eq "use" )
-                {
+                if ( $split_line[1] && $split_line[2] && $split_line[1] eq "use" ) {
                     #This follows the documentation to switch endianness
                     if ( $split_line[2] && $split_line[2] =~ /^\^/ ) {
                         push @{ $current_test->{"use"} },
                           substr( $split_line[2], 1 );
-
-                #In practice it seems to follow this format to switch endianness
+                    #In practice it seems to follow this format to switch endianness
                     }
                     elsif ( $split_line[2] && $split_line[2] =~ /^\\\^/ ) {
                         push @{ $current_test->{"use"} },
@@ -387,12 +369,9 @@ sub _parse_mime_files {
 
                 }
 
-        # Type of the line is name, i.e., the test can be called by another test
-        # Ex: 0	name	pdf
-                if (   $split_line[1]
-                    && $split_line[2]
-                    && $split_line[1] eq "name" )
-                {
+                # Type of the line is name, i.e., the test can be called by another test
+                # Ex: 0	name	pdf
+                if ( $split_line[1] && $split_line[2] && $split_line[1] eq "name" ) {
                     push @{ $current_test->{"name"} }, $split_line[2];
                 }
 
