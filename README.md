@@ -27,7 +27,7 @@ and remove all the unnecessary tests for the detection of the MIME types we are 
 
 ## Usage
 
-See the [Install]() section for more details on the requirements of our tools. 
+See the [Install](#install) section for more details on the requirements of our tools. 
 ### CLI
 
 With our `CLI tool`, you can quickly create a minimal magic file called `mini_magic` containing 
@@ -73,7 +73,8 @@ my $magic_name = "mini_magic";
 create_mini_magic_file($mime_types, $src_dir, $magic_name);
 ```
 
-See the [API]() for more details about the module.
+See the [API](#api) section for more details about the module.
+
 ## API
 
 ```perl
