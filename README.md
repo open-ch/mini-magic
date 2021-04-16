@@ -128,6 +128,7 @@ modules:
 - Const::Fast
 - IPC::Run
 - LWP::Simple
+- File::Slurper
 
 ## License
 
