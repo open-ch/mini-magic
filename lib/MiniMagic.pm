@@ -170,131 +170,6 @@ sub create_mini_magic_file {
     return $nbr_saved_tests;
 }
 
-# _save_tests saves the test to the magic file.
-# The arguments of the function are:
-# - $tests: the reference to the array containing all tests that are still relevant
-# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
-# - $magic_file: the path where to save the magic file
-# It returns:
-# - the number of saved tests
-sub _save_tests {
-    my ( $tests, $named_tests, $magic_file ) = @_;
-    my $saved_tests = 0;
-
-    my $write_handler;
-    open( $write_handler, ">>", $magic_file ) or die $!;
-    for my $test (@$tests) {
-
-        # Test only contains a listed MIME type and neither calls or is called by another test
-        if ( $test->{"mime"} && !$test->{"saved"} && !@{ $test->{"use"} } && !@{ $test->{"name"} } ) {
-            print $write_handler $test->{"body"} . "\n";
-            $test->{"saved"} = 1;
-            $saved_tests++;
-        }
-
-        # Test is the root of the tree test.
-        # This means that this test calls at least another test (that might call another test etc).
-        # We need to check wether or not one (or more) test(s) in the tree starting at the root must be saved, and if it is the case all tests in the tree are saved.
-        if ( @{ $test->{"use"} } && !@{ $test->{"name"} } ) {
-            my ( $save, $discovered ) = _traverse_tests_tree( $test, $named_tests );
-
-            if ($save) {
-
-                for my $name ( keys %$discovered ) {
-                    my $called_test = $named_tests->{$name};
-
-                    if ( !$called_test->{"saved"} ) {
-                        print $write_handler $called_test->{"body"} . "\n";
-                        $called_test->{"saved"} = 1;
-                        $saved_tests++;
-                    }
-                }
-
-                if ( !$test->{"saved"} ) {
-                    print $write_handler $test->{"body"} . "\n";
-                    $test->{"saved"} = 1;
-                    $saved_tests++;
-                }
-            }
-        }
-    }
-    close($write_handler);
-
-    return $saved_tests;
-
-}
-
-# _traverse_tests_tree applies BFS on the graph of interconnected tests (test that call each other) and decide if all the tests in the graph
-# must be saved to the magic file or not.
-# The arguments of the function are:
-# - $root: the reference to the test that only calls other tests (has at least one use type and no name type). It is the root of the BFS algorithm.
-# - $named_tests: the reference to the hash that maps a name to the test structure that have a name type
-# It returns a tuple with:
-# - boolean value that indicates wether or not to save the tests
-# - all the tests visited by BFS
-sub _traverse_tests_tree {
-    my ( $root, $named_tests ) = @_;
-
-    my $save = 0;
-
-    if ( $root->{"mime"} ) {
-        $save = 1;
-    }
-
-    my @queue;
-    my %discovered;
-
-    for my $sub_name ( @{ $root->{"use"} } ) {
-        if ( !defined( $discovered{$sub_name} ) ) {
-            $discovered{$sub_name} = 1;
-            push @queue, $sub_name;
-        }
-    }
-
-    # BFS loop. It traverses the graph formed by the tests. Each test is traversed once (and only once).
-    while (@queue) {
-        my $name        = shift @queue;
-        my $called_test = $named_tests->{$name};
-
-        # Check if we need to save all tests in the graph
-        if ( $called_test->{"mime"} ) {
-            $save = 1;
-        }
-
-        # Enqueue all children tests that were not traversed yet.
-        for my $sub_name ( @{ $called_test->{"use"} } ) {
-            if ( !defined( $discovered{$sub_name} ) ) {
-                $discovered{$sub_name} = 1;
-                push @queue, $sub_name;
-            }
-        }
-    }
-
-    return ( $save, \%discovered );
-
-}
-
-# _filter_test decides wether a test is kept or not.
-# If a test is not filtered, it is added to the relevant structure.
-# The arguments are:
-# - $current_test: the test for which the decision is done.
-# - $tests: the reference to the array containing all tests that are still relevant
-# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
-sub _filter_test {
-
-    my ( $current_test, $named_tests, $tests ) = @_;
-
-    # Only keep a test if it has a desired MIME type, it calls another test or it is called by another test
-    if ( $current_test->{"mime"} || @{ $current_test->{"name"} } || @{ $current_test->{"use"} } ) {
-        push @$tests, $current_test;
-        if ( @{ $current_test->{"name"} } ) {
-            for my $name ( @{ $current_test->{"name"} } ) {
-                $named_tests->{$name} = $current_test;
-            }
-        }
-    }
-}
-
 # _parse_mime_files is an helper function that parses the files containing the MIME type definition.
 # It removes the tests that can be already identified as useless for the listed MIME types.
 # It only keeps tests that:
@@ -400,4 +275,130 @@ sub _parse_mime_files {
 
     return $total_nbr_tests;
 }
- 1;
+
+# _filter_test decides wether a test is kept or not.
+# If a test is not filtered, it is added to the relevant structure.
+# The arguments are:
+# - $current_test: the test for which the decision is done.
+# - $tests: the reference to the array containing all tests that are still relevant
+# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
+sub _filter_test {
+
+    my ( $current_test, $named_tests, $tests ) = @_;
+
+    # Only keep a test if it has a desired MIME type, it calls another test or it is called by another test
+    if ( $current_test->{"mime"} || @{ $current_test->{"name"} } || @{ $current_test->{"use"} } ) {
+        push @$tests, $current_test;
+        if ( @{ $current_test->{"name"} } ) {
+            for my $name ( @{ $current_test->{"name"} } ) {
+                $named_tests->{$name} = $current_test;
+            }
+        }
+    }
+}
+
+# _save_tests saves the test to the magic file.
+# The arguments of the function are:
+# - $tests: the reference to the array containing all tests that are still relevant
+# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
+# - $magic_file: the path where to save the magic file
+# It returns:
+# - the number of saved tests
+sub _save_tests {
+    my ( $tests, $named_tests, $magic_file ) = @_;
+    my $saved_tests = 0;
+
+    my $write_handler;
+    open( $write_handler, ">>", $magic_file ) or die $!;
+    for my $test (@$tests) {
+
+        # Test only contains a listed MIME type and neither calls or is called by another test
+        if ( $test->{"mime"} && !$test->{"saved"} && !@{ $test->{"use"} } && !@{ $test->{"name"} } ) {
+            print $write_handler $test->{"body"} . "\n";
+            $test->{"saved"} = 1;
+            $saved_tests++;
+        }
+
+        # Test is the root of the tree test.
+        # This means that this test calls at least another test (that might call another test etc).
+        # We need to check wether or not one (or more) test(s) in the tree starting at the root must be saved, and if it is the case all tests in the tree are saved.
+        if ( @{ $test->{"use"} } && !@{ $test->{"name"} } ) {
+            my ( $save, $discovered ) = _traverse_tests_tree( $test, $named_tests );
+
+            if ($save) {
+
+                for my $name ( keys %$discovered ) {
+                    my $called_test = $named_tests->{$name};
+
+                    if ( !$called_test->{"saved"} ) {
+                        print $write_handler $called_test->{"body"} . "\n";
+                        $called_test->{"saved"} = 1;
+                        $saved_tests++;
+                    }
+                }
+
+                if ( !$test->{"saved"} ) {
+                    print $write_handler $test->{"body"} . "\n";
+                    $test->{"saved"} = 1;
+                    $saved_tests++;
+                }
+            }
+        }
+    }
+    close($write_handler);
+
+    return $saved_tests;
+
+}
+
+# _traverse_tests_tree applies BFS on the graph of interconnected tests (test that call each other) and decide if all the tests in the graph
+# must be saved to the magic file or not.
+# The arguments of the function are:
+# - $root: the reference to the test that only calls other tests (has at least one use type and no name type). It is the root of the BFS algorithm.
+# - $named_tests: the reference to the hash that maps a name to the test structure that have a name type
+# It returns a tuple with:
+# - boolean value that indicates wether or not to save the tests
+# - all the tests visited by BFS
+sub _traverse_tests_tree {
+    my ( $root, $named_tests ) = @_;
+
+    my $save = 0;
+
+    if ( $root->{"mime"} ) {
+        $save = 1;
+    }
+
+    my @queue;
+    my %discovered;
+
+    for my $sub_name ( @{ $root->{"use"} } ) {
+        if ( !defined( $discovered{$sub_name} ) ) {
+            $discovered{$sub_name} = 1;
+            push @queue, $sub_name;
+        }
+    }
+
+    # BFS loop. It traverses the graph formed by the tests. Each test is traversed once (and only once).
+    while (@queue) {
+        my $name        = shift @queue;
+        my $called_test = $named_tests->{$name};
+
+        # Check if we need to save all tests in the graph
+        if ( $called_test->{"mime"} ) {
+            $save = 1;
+        }
+
+        # Enqueue all children tests that were not traversed yet.
+        for my $sub_name ( @{ $called_test->{"use"} } ) {
+            if ( !defined( $discovered{$sub_name} ) ) {
+                $discovered{$sub_name} = 1;
+                push @queue, $sub_name;
+            }
+        }
+    }
+
+    return ( $save, \%discovered );
+
+}
+
+1;
