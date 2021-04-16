@@ -84,7 +84,7 @@ sub list_mime_types {
     for my $file (@files) {
         open( my $fh, '<', $file ) or die $!;
 
- # for each line, check if the line starts with !:mime and extract the MIME type
+        # for each line, check if the line starts with !:mime and extract the MIME type
         while ( my $line = readline($fh) ) {
             if ( $line =~ /^!:mime/ ) {
                 $line =~ /($MIME_TYPE_REGEX)/;
@@ -95,8 +95,7 @@ sub list_mime_types {
         close($fh);
     }
 
-    my @mime_list = [keys %mime_types];
-
+    my @mime_list = keys %mime_types;
     return \@mime_list;
 }
 

@@ -27,17 +27,18 @@ use Log::Log4perl::Level;
 use Log::Any::Adapter;
 use Cwd qw(abs_path);
 
+# Print command line usage help text
 sub exit_with_help {
-    print <<~'USAGE'
+    print <<~'USAGE';
             Usage:
-            mini-magic --mime type1,type2,...,typeN [<OPTIONAL PARAMETERS>]
+            mini-magic --mime-types type1,type2,...,typeN [<OPTIONAL PARAMETERS>]
             mini-magic --all [<OPTIONAL PARAMETERS>]
             mini-magic --from-file file [<OPTIONAL PARAMETERS>]
             mini-magic --list [<OPTIONAL PARAMETERS>]
             mini-magic --download [<OPTIONAL PARAMETERS>]
             mini-magic --help
 
-            --mime type1,type2,...,typeN    Creates a magic file containing the tests needed to detect the MIME types type1 to typeN.
+            --mime-types type1,type2,...,typeN    Creates a magic file containing the tests needed to detect the MIME types type1 to typeN.
                                             This magic file is not compiled. To do so, use the file command (with the appropriate version) as follow:
                                             file -C -m /path/to/magic_file
             -a|--all                        Creates a magic file with all available MIME types.
@@ -52,119 +53,121 @@ sub exit_with_help {
             --debug                         More verbose output (to stdout not syslog).
             --version                       Libmagic version (default 5.39). This optional parameter is only used with --download.
             --src                           MIME type source directory (default Magdir/).
-            --magic-name                    Name of the created magic file (default magic). This optional parameter is only used with --mime, --all and --from-file.
+            --magic-filename               Name of the created magic file (default magic). This optional parameter is only used with --mime-types, --all and --from-file.
         USAGE
     exit 1;
 }
 
 sub main {
-    my $download = 0;
-    my $list     = 0;
+    
+    my %args = (
+        'mandatory' => {
+            'download' => 0,
+            'list' => 0,
+            'mime types' => '',
+            'all' => 0,
+            'filename' => '',
+        },
+        'optional' => {
+            'debug' => 0,
+            'version' => '',
+            'source' => '',
+            'magic filename' => '',
+        },
+    );
+
     my @mime_types;
-    my $debug      = 0;
-    my $version    = '';
-    my $src_dir    = '';
-    my $magic_name = '';
-    my $all        = 0;
-    my $file_name  = '';
 
-
-    # Command-line argument processing
     GetOptions(
-        'download|d'    => \$download,
-        'list|l'        => \$list,
-        'mime=s'        => \@mime_types,
-        'all|a'         => \$all,
-        'from-file|f=s' => \$file_name,
-        "version=s"     => \$version,
-        "src=s"         => \$src_dir,
-        "magic-name=s"  => \$magic_name,
-        "debug"         => \$debug,
-        "help|h"        => \&exit_with_help,
+        'download|d'            => \$args{'mandatory'}->{'download'},
+        'list|l'                => \$args{'mandatory'}->{'list'},
+        'mime-types=s'          => \$args{'mandatory'}->{'mime types'},
+        'all|a'                 => \$args{'mandatory'}->{'all'},
+        'from-file|f=s'         => \$args{'mandatory'}->{'filename'},
+        "debug"                 => \$args{'optional'}->{'debug'},
+        "version=s"             => \$args{'optional'}->{'version'},
+        "src=s"                 => \$args{'optional'}->{'source'},
+        "magic-filename=s"     => \$args{'optional'}->{'magic filename'},
+        "help|h"                => \&exit_with_help, 
     ) or exit_with_help();
+    
+    check_args(\%args);
+    $args{'optional'}->{'version'}          ||= '5.39';
+    $args{'optional'}->{'source'}           ||= 'Magdir';
+    $args{'optional'}->{'magic filename'}   ||= 'magic';
 
-    # --mime-types is a comma separated list, and there could be several of them
-    @mime_types = split( /,/, join( ',', @mime_types ) );
-    check_args($download, $list, \@mime_types, $all, $file_name);
-    $version    ||= '5.39';
-    $src_dir    ||= 'Magdir';
-    $magic_name ||= 'magic';
+    configure_log($args{'optional'}->{'debug'});
 
-    configure_log($debug);
-
-    if ($download) {
-        MiniMagic::download_magic_files( abs_path($src_dir), $version );
+    if ($args{'mandatory'}->{'download'}) {
+        MiniMagic::download_magic_files( abs_path($args{'optional'}->{'source'}), $args{'optional'}->{'version'} );
     }
-    if ($file_name) {
-        $file_name = abs_path($file_name);
-        die "$file_name does not exist" if ( !-f $file_name );
+    if ($args{'mandatory'}->{'filename'}) {
+        $args{'mandatory'}->{'filename'} = abs_path($args{'mandatory'}->{'filename'});
+        die "$args{'mandatory'}->{'filename'} does not exist" if ( !-f $args{'mandatory'}->{'filename'} );
 
-        open( my $fh, '<', $file_name );
-        while ( my $line = <$fh> ) {
+        open( my $fh, '<', $args{'mandatory'}->{'filename'} );
+        while ( my $line = readline($fh)) {
             chomp($line);
             next if !$line;
             push @mime_types, $line;
         }
         close($fh);
+    } 
+    elsif ( $args{'mandatory'}->{'mime types'}){
+        @mime_types = split(',', $args{'mandatory'}->{'mime types'});
     }
 
-    if ($list) {
-        MiniMagic::print_list_mime_types( abs_path($src_dir) );
+    if ($args{'mandatory'}->{'list'}) {
+        MiniMagic::print_list_mime_types( abs_path($args{'optional'}->{'source'}) );
     }
 
-    if ($all) {
-        my $mime_list = MiniMagic::list_mime_types( abs_path($src_dir) );
-        MiniMagic::create_mini_magic_file( $mime_list, abs_path($src_dir),
-            abs_path($magic_name) );
+    if ($args{'mandatory'}->{'all'}) {
+        my $mime_list = MiniMagic::list_mime_types( abs_path($args{'optional'}->{'source'}) );
+        MiniMagic::create_mini_magic_file( $mime_list, abs_path($args{'optional'}->{'source'}),
+            abs_path($args{'optional'}->{'magic filename'}) );
     }
     elsif (@mime_types) {
-        MiniMagic::create_mini_magic_file( \@mime_types, abs_path($src_dir),
-            abs_path($magic_name) );
+        MiniMagic::create_mini_magic_file( \@mime_types, abs_path($args{'optional'}->{'source'}),
+            abs_path($args{'optional'}->{'magic filename'}) );
     }
-
-
 }
 
-
-
 sub check_args {
-    my ($download, $list, $mime_types_ref, $all, $file_name) = @_
-
+    my $args = shift;
     my $set;
 
-    # Check that one and only one of the mutually exclusive flags is set
-    for my $arg ($download, $list, $all, $file_name) {
+    # Check that one and only one of the mutually exclusive mandatory flags is set
+    for my $key (keys %{$args->{'mandatory'}}) {
+        my $arg = $args->{'mandatory'}->{$key}; 
+        
         if ($arg) {
             exit_with_help() if $set;
             $set = 1;
         }
     }
+
     # the MIME type list is also mutually exclusive
-    exit_with_help() if ($set && @$mime_types_ref);
     exit_with_help() unless $set;
 
     # Check if the optional arguments are correct
-    if ( @$mime_types_ref || $all || $file_name ) {
-        exit_with_help() if $version;
+    if ( $args->{'mandatory'}->{'mime types'} || $args->{'mandatory'}->{'all'} || $args->{'mandatory'}->{'filename'} ) {
+        exit_with_help() if $args->{'optional'}->{'version'};
     }
-    elsif ($download) {
-        exit_with_help() if $magic_name;
+    elsif ($args->{'mandatory'}->{'download'}) {
+        exit_with_help() if $args->{'optional'}->{'magic filename'};
     }
-    elsif ($list) {
-        exit_with_help() if $version || $magic_name;
+    elsif ($args->{'mandatory'}->{'list'}) {
+        exit_with_help() if $args->{'optional'}->{'version'} || $args->{'optional'}->{'magic filename'};
     }
 
     return;
 }
 
-# Print command line usage help text
-
-
 sub configure_log {
     my ($debug) = @_;
     my $arg_level = $debug ? 'DEBUG' : 'INFO';
     my %conf;
-    $conf{'log4perl.logger' = $arg_level;
+    $conf{'log4perl.logger'} = $arg_level;
     $conf{'log4perl.appender.Screen'} = 'Log::Dispatch::Screen';
     $conf{'log4perl.appender.Screen.layout'} = 'Log::Log4perl::Layout::PatternLayout';
     $conf{'log4perl.appender.Screen.layout.ConversionPattern'} = '%d mini-magic[%P]: [%p] %m%n';
