@@ -127,6 +127,7 @@ modules:
 - Const::Fast
 - IPC::Run
 - LWP::Simple
+- Archive::Extract
 
 ## License
 

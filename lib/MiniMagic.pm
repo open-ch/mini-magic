@@ -25,6 +25,7 @@ use File::Copy;
 use LWP::Simple qw(get);
 use IPC::Run qw(run);
 use File::Slurper qw(write_binary);
+use Archive::Extract;
 
 # URL of the MIME type definitions for libmagic
 const my $FILE_REPO_URL => 'http://ftp.astron.com/pub/file/';
@@ -55,13 +56,17 @@ sub download_magic_files {
 
     # Extract Magdir to sources
     $log->debug("extract $file_dir/magic/Magdir to $src_dir");
-    my ( $input, $output, $error );
-    run [ "tar", "-xzf", $tar_file, "$file_dir/magic/Magdir" ], \$input,
-      \$output, \$error;
-    die "could not extract Magdir from file folder: $error" if $error;
+    my $ae = Archive::Extract->new(archive => $tar_file);
+    $ae->extract();
+ 
+    
+    # my ( $input, $output, $error );
+    # run [ "tar", "-xzf", $tar_file, "$file_dir/magic/Magdir" ], \$input,
+    #   \$output, \$error;
+    # die "could not extract Magdir from file folder: $error" if $error;
 
-    system("cp -r $file_dir/magic/Magdir/ $src_dir");
-    $log->info("MIME type definitions saved to $src_dir");
+    # system("cp -r $file_dir/magic/Magdir/ $src_dir");
+    # $log->info("MIME type definitions saved to $src_dir");
 
     # clean downloaded files
     rmtree($file_dir) or die "Could not remove downloaded $file_dir directory: $!";
@@ -121,6 +126,60 @@ sub print_list_mime_types {
     }
 
     return;
+}
+
+# create_mini_magic_file creates a magic file containing all tests needed to detect all the desired MIME types
+# where the arguments of the function are:
+# - $mime_array: the reference of the array containing the desired MIME types
+# - $src_dir: the location of the directory where the MIME type definitions are located
+# - $magic_file: the name of the created (minimal) magic file
+sub create_mini_magic_file {
+
+    my ( $mime_array, $src_dir, $magic_file ) = @_;
+
+    # Check if the directory with the MIME type definitions exists
+    die
+"$src_dir was not found, impossible to list the MIME types contained in it"
+      if ( !-d $src_dir );
+
+    # Remove existing magic file
+    if ( -e $magic_file ) {
+        unlink $magic_file;
+    }
+
+    # Create set of MIME types used for filtering
+    my %mime_types = ();
+    for my $mime (@$mime_array) {
+        $mime_types{$mime} = 0;
+    }
+
+# Array containing all (references of the hash of) the tests that were not filtered out
+    my @tests;
+
+# Maps the name of a named test to its hash structure (same reference as in the array @tests)
+    my %named_tests;
+
+    my $total_nbr_tests =
+      _parse_mime_files( \@tests, \%named_tests, \%mime_types, $src_dir );
+
+    my $nbr_tests       = @tests;
+    my $nbr_named_tests = keys %named_tests;
+    $log->debug(
+"$nbr_tests tests remaining after first traversal where $nbr_named_tests have type name"
+    );
+
+    for my $mime ( keys %mime_types ) {
+        if ( !$mime_types{$mime} ) {
+            $log->debug( "No test for " . $mime . " was found" );
+        }
+    }
+
+    my $nbr_saved_tests = _save_tests( \@tests, \%named_tests, $magic_file );
+    $log->info( $nbr_saved_tests . "/"
+          . $total_nbr_tests
+          . " tests were save to $magic_file" );
+
+    return $nbr_saved_tests;
 }
 
 # _save_tests saves the test to the magic file.
@@ -370,59 +429,4 @@ sub _parse_mime_files {
 
     return $total_nbr_tests;
 }
-
-# create_mini_magic_file creates a magic file containing all tests needed to detect all the desired MIME types
-# where the arguments of the function are:
-# - $mime_array: the reference of the array containing the desired MIME types
-# - $src_dir: the location of the directory where the MIME type definitions are located
-# - $magic_file: the name of the created (minimal) magic file
-sub create_mini_magic_file {
-
-    my ( $mime_array, $src_dir, $magic_file ) = @_;
-
-    # Check if the directory with the MIME type definitions exists
-    die
-"$src_dir was not found, impossible to list the MIME types contained in it"
-      if ( !-d $src_dir );
-
-    # Remove existing magic file
-    if ( -e $magic_file ) {
-        unlink $magic_file;
-    }
-
-    # Create set of MIME types used for filtering
-    my %mime_types = ();
-    for my $mime (@$mime_array) {
-        $mime_types{$mime} = 0;
-    }
-
-# Array containing all (references of the hash of) the tests that were not filtered out
-    my @tests;
-
-# Maps the name of a named test to its hash structure (same reference as in the array @tests)
-    my %named_tests;
-
-    my $total_nbr_tests =
-      _parse_mime_files( \@tests, \%named_tests, \%mime_types, $src_dir );
-
-    my $nbr_tests       = @tests;
-    my $nbr_named_tests = keys %named_tests;
-    $log->debug(
-"$nbr_tests tests remaining after first traversal where $nbr_named_tests have type name"
-    );
-
-    for my $mime ( keys %mime_types ) {
-        if ( !$mime_types{$mime} ) {
-            $log->debug( "No test for " . $mime . " was found" );
-        }
-    }
-
-    my $nbr_saved_tests = _save_tests( \@tests, \%named_tests, $magic_file );
-    $log->info( $nbr_saved_tests . "/"
-          . $total_nbr_tests
-          . " tests were save to $magic_file" );
-
-    return $nbr_saved_tests;
-}
-
-1;
+ 1;
