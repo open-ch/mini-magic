@@ -24,27 +24,13 @@ use File::Path;
 use File::Copy;
 use LWP::Simple qw(get);
 use IPC::Run qw(run);
+use File::Slurper qw(write_binary);
 
 # URL of the MIME type definitions for libmagic
-const my $FILE_REPO_URL => "http://ftp.astron.com/pub/file/";
+const my $FILE_REPO_URL => 'http://ftp.astron.com/pub/file/';
 
 # https://tools.ietf.org/html/rfc6838#section-4.2
 const my $MIME_TYPE_REGEX => qr"\w[-!#\$&^+.\w]{0,126}\/\w[-!#\$&^+.\w]{0,126}";
-
-# _download is an helper function that downloads files from $url and saves them to $dest
-# where the arguments of the function are:
-# - $url: the url of the file
-# - $dest: the location where the file is saved
-sub _download {
-    my ( $url, $dest ) = @_;
-    my $file = get $url;
-    my $fh;
-    open( $fh, ">", $dest );
-    print $fh $file;
-    close($fh);
-
-    $log->debug("file from $url saved at $dest");
-}
 
 # download_magic_files downloads the MIME type definitions from the file repository
 # where the arguments of the function are:
@@ -63,8 +49,9 @@ sub download_magic_files {
     my $tar_file = "$file_dir.tar.gz";
 
     my $url = $FILE_REPO_URL . $tar_file;
-    $log->debug("downloading $url");
-    _download( $url, $tar_file );
+    $log->debug("going to download $url");
+    write_binary($tar_file, get($url));
+    $log->debug("file from $url saved at $tar_file");
 
     # Extract Magdir to sources
     $log->debug("extract $file_dir/magic/Magdir to $src_dir");
@@ -77,11 +64,11 @@ sub download_magic_files {
     $log->info("MIME type definitions saved to $src_dir");
 
     # clean downloaded files
-    rmtree($file_dir)
-      or die "Could not remove downloaded $file_dir directory: $!";
+    rmtree($file_dir) or die "Could not remove downloaded $file_dir directory: $!";
     unlink($tar_file) or die "Could not remove downloaded $tar_file file: $!";
 
 }
+
 
 #list_mime_types creates a list of all MIME types available
 # The arguments of the function are:
@@ -91,15 +78,14 @@ sub list_mime_types {
     my ($src_dir) = @_;
 
     # Create set of MIME types to avoid duplicates
-    my %mime_types = ();
+    my %mime_types;
 
-    my @files = <$src_dir/*>;
+    my @files = glob("$src_dir/*");
     for my $file (@files) {
-        my $fh;
-        open( $fh, "<", $file ) or die $!;
+        open( my $fh, '<', $file ) or die $!;
 
  # for each line, check if the line starts with !:mime and extract the MIME type
-        while ( my $line = <$fh> ) {
+        while ( my $line = readline($fh) ) {
             if ( $line =~ /^!:mime/ ) {
                 $line =~ /($MIME_TYPE_REGEX)/;
                 $mime_types{$1} = 1;
@@ -109,7 +95,7 @@ sub list_mime_types {
         close($fh);
     }
 
-    my @mime_list = keys %mime_types;
+    my @mime_list = [keys %mime_types];
 
     return \@mime_list;
 }
@@ -122,8 +108,7 @@ sub print_list_mime_types {
     my ($src_dir) = @_;
 
     if ( !-d $src_dir ) {
-        die
-"$src_dir was not found, impossible to list the MIME types contained in it";
+        die "$src_dir was not found, impossible to list the MIME types contained in it";
     }
 
     # Create set of MIME types to avoid duplicates
@@ -133,9 +118,10 @@ sub print_list_mime_types {
     $log->debug("$size MIME type definitions found at $src_dir");
 
     for ( sort @$mime_types ) {
-        print "$_\n";
+        say $_;
     }
 
+    return;
 }
 
 # _save_tests saves the test to the magic file.
