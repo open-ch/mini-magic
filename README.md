@@ -27,6 +27,38 @@ and remove all the unnecessary tests for the detection of the MIME types we are 
 
 ## Usage
 
+See the [Install]() section for more details on the requirements of our tools. 
+### CLI
+
+With our `CLI tool`, you can quickly create a minimal magic file called `mini_magic` containing 
+only the necessary tests to detect `application/pdf` and `application/x-executable` from the magic
+files located at `Magdir`:
+
+```bash
+mini-magic --mime-types application/pdf,application/x-executable --src Magdir --magic-filename mini_magic
+```
+The minimal magic file, `mini_magic`, can either be used as is by `libmagic`:
+
+```bash
+# -i causes the file command to output mime type strings
+file -m mini_magic some_file -i
+```
+
+or it can be first compiled to further improve the performance:
+
+```bash
+file -C -m mini_magic
+```
+
+This produces the compiled magic database `mini_magic.mgc` .
+
+For more details on the CLI capabilities and options use the flag `--help`.
+
+### Perl module
+
+We also provide a `perl module` called `MiniMagic`. You can achieve the same
+result as the CLI tool with the following code snippet:
+
 ```perl
 
 # list of MIME types you want to detect
@@ -41,29 +73,7 @@ my $magic_name = "mini_magic";
 create_mini_magic_file($mime_types, $src_dir, $magic_name);
 ```
 
-This creates the magic file `mini_magic`. It can either be used as is by libmagic:
-
-```bash
-# -i causes the file command to output mime type strings
-file -m mini_magic some_file -i
-```
-
-or it can be first compiled to further improve the performance:
-
-```bash
-file -C -m mini_magic
-```
-
-This produces the compiled magic database `mini_magic.mgc`.
-
-We also provide a CLI tool that achieves the same result as the code snippet with:
-
-```bash
-mini-magic --mime application/pdf,application/x-executable --src Magdir --magic-name mini_magic
-```
-
-For more details on the CLI capabilities and options use the flag `--help`.
-
+See the [API]() for more details about the module.
 ## API
 
 ```perl
