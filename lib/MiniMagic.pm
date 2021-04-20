@@ -85,8 +85,9 @@ sub list_mime_types {
         # for each line, check if the line starts with !:mime and extract the MIME type
         while ( my $line = readline($fh) ) {
             if ( $line =~ /^!:mime/ ) {
-                $line =~ /($MIME_TYPE_REGEX)/;
-                $mime_types{$1} = 1 if($1);
+                if ($line =~ /($MIME_TYPE_REGEX)/) {
+                    $mime_types{$1} = 1;
+                }
             }
         }
 
@@ -141,7 +142,7 @@ sub create_mini_magic_file {
     }
 
     # Create set of MIME types used for filtering
-    my %mime_types = ();
+    my %mime_types;
     for my $mime (@$mime_array) {
         $mime_types{$mime} = 0;
     }
@@ -190,81 +191,75 @@ sub _parse_mime_files {
     $log->debug("parsing files at $src_dir");
     for my $file (glob("$src_dir/*")) {
         my $read_handler;
-        open( $read_handler, "<", $file ) or die $!;
+        open( $read_handler, '<', $file ) or die $!;
 
         # Create new test hash reference
         my $current_test = {
-            "body"  => "",  # Contains the test (text)
-            "mime"  => "",  # The MIME type of the test (only if it is one of the listed ones)
-            "name"  => [],  # Name(s) of the test.
+            body  => '',    # Contains the test (text)
+            mime  => '',    # The MIME type of the test (only if it is one of the listed ones)
+            name  => [],    # Name(s) of the test.
                             # A test might contain more than one type "name" (see x8192 in pgp)
-            "use"   => [],  # The names of the tests that $current_test calls
-            "saved" =>0,    # Indicates if the test was already saved to the magic file.
+            use   => [],    # The names of the tests that $current_test calls
+            saved => 0,     # Indicates if the test was already saved to the magic file.
         };
 
         while ( my $line = readline($read_handler) ) {
 
             # Skip comments and blank lines
-            if ( !( $line =~ /^#|^\s+#/ || $line =~ /^\n|\r/ ) ) {
-                my @split_line = split /\s+/, $line;
+            next if ( $line =~ /^#|^\s+#/ || $line =~ /^\n|\r/ );
 
-                # End of a test
-                if ( $line =~ /^\d/ && $current_test->{"body"} ) {
-                    $total_nbr_tests++;
+            my @split_line = split /\s+/, $line;
 
-                    _filter_test( $current_test, $named_tests, $tests );
+            # End of a test
+            if ( $line =~ /^\d/ && $current_test->{'body'} ) {
+                $total_nbr_tests++;
 
-                    # Reset state
-                    $current_test = {
-                        "body"  => "",
-                        "mime"  => "",
-                        "name"  => [],
-                        "use"   => [],
-                        "saved" => 0,
-                    };
+                _filter_test( $current_test, $named_tests, $tests );
 
-                }
+                # Reset state
+                $current_test = {
+                    'body'  => '',
+                    'mime'  => '',
+                    'name'  => [],
+                    'use'   => [],
+                    'saved' => 0,
+                };
 
-                # Type of the line is use, i.e., the test calls another test
-                # Ex: >0	use		pdf
-                if ( $split_line[1] && $split_line[2] && $split_line[1] eq "use" ) {
-                    #This follows the documentation to switch endianness
-                    if ( $split_line[2] && $split_line[2] =~ /^\^/ ) {
-                        push @{ $current_test->{"use"} },
-                          substr( $split_line[2], 1 );
-                    #In practice it seems to follow this format to switch endianness
-                    }
-                    elsif ( $split_line[2] && $split_line[2] =~ /^\\\^/ ) {
-                        push @{ $current_test->{"use"} },
-                          substr( $split_line[2], 2 );
-                    }
-                    else {
-                        push @{ $current_test->{"use"} }, $split_line[2];
-                    }
-
-                }
-
-                # Type of the line is name, i.e., the test can be called by another test
-                # Ex: 0	name	pdf
-                if ( $split_line[1] && $split_line[2] && $split_line[1] eq "name" ) {
-                    push @{ $current_test->{"name"} }, $split_line[2];
-                }
-
-                # Indicates mime type covered by the test
-                # Ex: !:mime	application/pdf
-                if ( $line =~ /^!:mime/ ) {
-                    $line =~ /($MIME_TYPE_REGEX)/;
-
-                    # Keep only if it's one of the desired MIME type
-                    if ( $1 && exists( $mime_types->{$1} ) ) {
-                        $current_test->{"mime"} = $1;
-                        $mime_types->{$1} = 1;
-                    }
-                }
-
-                $current_test->{"body"} = $current_test->{"body"} . $line;
             }
 
+            # Type of the line is use, i.e., the test calls another test
+            # Example: >0	use		pdf
+            if ( $split_line[1] && $split_line[2] && $split_line[1] eq 'use' ) {
+
+                my $test_name = $split_line[2];
+
+                # remove endianness
+                $test_name =~ s/^\^//;   # This follows the documentation to switch endianness
+                $test_name =~ s/^\\\^//; # In practice it seems to follow this format to switch endianness
+
+                push @{ $current_test->{'use'} }, $test_name;
+
+            }
+
+            # Type of the line is name, i.e., the test can be called by another test
+            # Example: 0	name	pdf
+            if ( $split_line[1] && $split_line[2] && $split_line[1] eq 'name' ) {
+                push @{ $current_test->{'name'} }, $split_line[2];
+            }
+
+            # Indicates mime type covered by the test
+            # Example: !:mime	application/pdf
+            if ( $line =~ /^!:mime/ ) {
+                $line =~ /($MIME_TYPE_REGEX)/;
+
+                # Keep only if it's one of the desired MIME type
+                if ( $1 && exists( $mime_types->{$1} ) ) {
+                    $current_test->{'mime'} = $1;
+                    $mime_types->{$1} = 1;
+                }
+            }
+
+            $current_test->{'body'} .= $line;
         }
 
         # Do the checks for the last test
