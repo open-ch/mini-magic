@@ -24,31 +24,32 @@ use MiniMagic;
 sub build_input {
     my $root = {};
     $root->{"body"}  = "";
-    $root->{"mime"}  = "";
+    $root->{"mimes"}  = [];
     $root->{"name"}  = [];
     $root->{"use"}   = [ "level1_1", "level1_2" ];
     $root->{"saved"} = 0;
 
     my $level1_1;
     $level1_1->{"body"}  = "";
-    $level1_1->{"mime"}  = "";
+    $level1_1->{"mimes"}  = [];
     $level1_1->{"name"}  = ["level1_1"];
     $level1_1->{"use"}   = [ "level2", "level2" ];
     $level1_1->{"saved"} = 0;
 
     my $level1_2;
     $level1_2->{"body"}  = "";
-    $level1_2->{"mime"}  = "";
+    $level1_2->{"mimes"}  = [];
     $level1_2->{"name"}  = ["level1_2"];
     $level1_2->{"use"}   = [ "level2", "level2" ];
     $level1_2->{"saved"} = 0;
 
     my $level2;
     $level2->{"body"}  = "";
-    $level2->{"mime"}  = "something";
+    $level2->{"mimes"}  = ["something"];
     $level2->{"name"}  = ["level2"];
     $level2->{"use"}   = [];
     $level2->{"saved"} = 0;
+    $level2->{"has_desired_mime"} = 1;
 
     my %named_tests = (
         "level1_1" => $level1_1,

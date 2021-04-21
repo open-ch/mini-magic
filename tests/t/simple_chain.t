@@ -27,18 +27,17 @@ for my $test_index ( 0 .. 3 ) {
 
     # build test structures
     my $caller = {};
-    $caller->{"mime"} = "";
+
     if ($caller_mime_type) {
-        $caller->{"mime"} = "something";
+        $caller->{"has_desired_mime"} = 1;
     }
     $caller->{"name"}  = [];
     $caller->{"use"}   = ["callee"];
     $caller->{"saved"} = 0;
 
     my $callee = {};
-    $callee->{"mime"} = "";
     if ($callee_mime_type) {
-        $callee->{"mime"} = "something";
+        $callee->{"has_desired_mime"} = 1;
     }
     $callee->{"name"}  = ["callee"];
     $callee->{"use"}   = [];

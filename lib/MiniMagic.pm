@@ -129,7 +129,7 @@ sub print_list_mime_types {
 # - $magic_file: the name of the created (minimal) magic file
 sub create_mini_magic_file {
 
-    my ( $mime_array, $src_dir, $magic_file ) = @_;
+    my ( $mime_array, $src_dir, $magic_filename ) = @_;
 
     # Check if the directory with the MIME type definitions exists
     if ( !-d $src_dir ){
@@ -137,70 +137,48 @@ sub create_mini_magic_file {
     }
 
     # Remove existing magic file
-    if ( -e $magic_file ) {
-        unlink $magic_file or die "impossible to remove $magic_file: $!";
+    if ( -e $magic_filename ) {
+        unlink $magic_filename or die "impossible to remove $magic_filename: $!";
     }
 
-    # Create set of MIME types used for filtering
-    my %mime_types;
-    for my $mime (@$mime_array) {
-        $mime_types{$mime} = 0;
-    }
+    # parsing magic files from $src_dir
+    my $tests = _parse_mime_files($src_dir);
+
+    # removing all tests that are not necessary to detect MIME types in $mime_array
+    my $tests_to_save = _filter_tests($tests, $mime_array);
+
+    # create new magic file with the necessary tests
+    _save_magic_file($tests_to_save, $magic_filename);
+
+    return;
+
+}
+
+# _parse_mime_files is an helper function that parses the files containing the MIME type definition.
+# The arguments of the function are:
+# - $src_dir: the path of the directory where the MIME type definitions are located
+# It returns an array containing the structures created for the parsed tests (more details below)
+sub _parse_mime_files {
+
+    my $src_dir = shift;
 
     # Array containing all (references of the hash of) the tests that were not filtered out
     my @tests;
 
-    # Maps the name of a named test to its hash structure (same reference as in the array @tests)
-    my %named_tests;
-
-    my $total_nbr_tests = _parse_mime_files( \@tests, \%named_tests, \%mime_types, $src_dir );
-
-    my $nbr_tests       = @tests;
-    my $nbr_named_tests = keys %named_tests;
-    $log->debug( "$nbr_tests tests remaining after first traversal where $nbr_named_tests have type name" );
-
-    for my $mime ( keys %mime_types ) {
-        if ( !$mime_types{$mime} ) {
-            $log->debug( "No test for " . $mime . " was found" );
-        }
-    }
-
-    my $nbr_saved_tests = _save_tests( \@tests, \%named_tests, $magic_file );
-    $log->info( "$nbr_saved_tests/$total_nbr_tests tests were save to $magic_file" );
-
-    return $nbr_saved_tests;
-}
-
-# _parse_mime_files is an helper function that parses the files containing the MIME type definition.
-# It removes the tests that can be already identified as useless for the listed MIME types.
-# It only keeps tests that:
-# - call other tests (has type "use")
-# - are called by other tests (has type "name")
-# - have a listed MIME type
-# The arguments of the function are:
-# - $tests: the reference to the array containing all tests that are still relevant
-# - $named_tests: (the reference of) the hash mapping a name of a test to its reference (more details about the structure in the function)
-# - $mime_types: the reference to the set of desired MIME types
-# - $src_dir: the path of the directory where the MIME type definitions are located
-# It returns the total number of tests
-sub _parse_mime_files {
-
-    my ( $tests, $named_tests, $mime_types, $src_dir ) = @_;
-    my $total_nbr_tests = 0;
-
-    $log->debug("parsing files at $src_dir");
+    $log->debug("parsing files from $src_dir");
     for my $file (glob("$src_dir/*")) {
         my $read_handler;
         open( $read_handler, '<', $file ) or die $!;
 
         # Create new test hash reference
         my $current_test = {
-            body  => '',    # Contains the test (text)
-            mime  => '',    # The MIME type of the test (only if it is one of the listed ones)
-            name  => [],    # Name(s) of the test.
-                            # A test might contain more than one type "name" (see x8192 in pgp)
-            use   => [],    # The names of the tests that $current_test calls
-            saved => 0,     # Indicates if the test was already saved to the magic file.
+            body                => '',  # Contains the test (text)
+            mimes               => [],  # The MIME types of the test
+            name                => [],  # Name(s) of the test.
+                                        # A test might contain more than one type "name" (see x8192 in pgp)
+            use                 => [],  # The names of the tests that $current_test calls
+            saved               => 0,   # Indicates if the test was already saved to the magic file.
+            has_desired_mime    => 0,   # Indicates if the test has one of the desired MIME types.
         };
 
         while ( my $line = readline($read_handler) ) {
@@ -212,17 +190,16 @@ sub _parse_mime_files {
 
             # End of a test
             if ( $line =~ /^\d/ && $current_test->{'body'} ) {
-                $total_nbr_tests++;
-
-                _filter_test( $current_test, $named_tests, $tests );
+                push @tests, $current_test;
 
                 # Reset state
                 $current_test = {
-                    'body'  => '',
-                    'mime'  => '',
-                    'name'  => [],
-                    'use'   => [],
-                    'saved' => 0,
+                    body                => '',
+                    mimes               => [],
+                    name                => [],
+                    use                 => [],
+                    saved               => 0,
+                    has_desired_mime    => 0,
                 };
 
             }
@@ -250,100 +227,116 @@ sub _parse_mime_files {
             # Indicates mime type covered by the test
             # Example: !:mime	application/pdf
             if ( $line =~ /^!:mime/ ) {
-                $line =~ /($MIME_TYPE_REGEX)/;
-
-                # Keep only if it's one of the desired MIME type
-                if ( $1 && exists( $mime_types->{$1} ) ) {
-                    $current_test->{'mime'} = $1;
-                    $mime_types->{$1} = 1;
+                if($line =~ /($MIME_TYPE_REGEX)/){
+                    push @{ $current_test->{'mimes'} }, $1;
                 }
             }
 
             $current_test->{'body'} .= $line;
         }
 
-        # Do the checks for the last test
-        _filter_test( $current_test, $named_tests, $tests );
-
+        push @tests, $current_test;
         close($read_handler);
     }
+    my $nbr_tests = @tests;
+    $log->debug("$nbr_tests tests were found in $src_dir");
 
-    return $total_nbr_tests;
+    return \@tests;
 }
 
-# _filter_test decides wether a test is kept or not.
-# If a test is not filtered, it is added to the relevant structure.
-# The arguments are:
-# - $current_test: the test for which the decision is done.
-# - $tests: the reference to the array containing all tests that are still relevant
-# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
-sub _filter_test {
+# _filter_tests removes all the unnecessay tests to detect the desired MIME types.
+# It works in 2 traversals:
+# 1) Go through the parsed tests and only keep the tests that either have one of the desired MIME types, call or are called by another test
+# 2) Traverse the trees formed by the tests calling each other and keep the whole tree if at least one test must be saved.
+# It takes as arguments:
+# $tests: an array containing the structures of the parsed tests
+# $mime_array: an array containing the desired MIME types
+# It returns an array containing the bodies of the tests that we want to save
+sub _filter_tests {
+    my ($tests, $mime_array) = @_;
+    
+    # Maps the name of a named test to its hash structure (same reference as in the array @tests)
+    my %named_tests;
 
-    my ( $current_test, $named_tests, $tests ) = @_;
+    # Create set of MIME types used for filtering
+    # The value of the hash is only for debugging
+    # 0 means that no test was found among $tests for this MIME type
+    my %mime_types;
+    for my $mime (@$mime_array) {
+        $mime_types{$mime} = 0;
+    }
 
-    # Only keep a test if it has a desired MIME type, it calls another test or it is called by another test
-    if ( $current_test->{"mime"} || @{ $current_test->{"name"} } || @{ $current_test->{"use"} } ) {
-        push @$tests, $current_test;
-        if ( @{ $current_test->{"name"} } ) {
-            for my $name ( @{ $current_test->{"name"} } ) {
-                $named_tests->{$name} = $current_test;
+    # decides wether or not we must keep a test
+    # only keep a test if it has a desired MIME type, it calls another test or it is called by another test
+    # if a test is called by another test we add it to %named_tests
+    my @filtered_tests;
+    for my $test (@$tests){
+        
+        # check if the test has one of the desired MIME type
+        for my $mime (@{$test->{'mimes'}}){
+            if(exists( $mime_types{$mime})){
+                $test->{'has_desired_mime'} = 1;
+                $mime_types{$mime} = 1;
             }
         }
+
+        if ( $test->{'has_desired_mime'}|| @{ $test->{'name'} } || @{ $test->{'use'} } ) {
+            push @filtered_tests, $test;
+            
+            if ( @{ $test->{'name'} } ) {
+                for my $name ( @{ $test->{'name'} } ) {
+                    $named_tests{$name} = $test;
+                }
+            }
+        }   
     }
-}
 
-# _save_tests saves the test to the magic file.
-# The arguments of the function are:
-# - $tests: the reference to the array containing all tests that are still relevant
-# - $named_tests: (the reference of) the hash mapping a name of a test to its reference
-# - $magic_file: the path where to save the magic file
-# It returns:
-# - the number of saved tests
-sub _save_tests {
-    my ( $tests, $named_tests, $magic_file ) = @_;
-    my $saved_tests = 0;
+    my $nbr_filtered_tests = @filtered_tests;
+    $log->debug("$nbr_filtered_tests remaining tests after first filtering");
+    for my $mime ( keys %mime_types ) {
+        if ( !$mime_types{$mime} ) {
+            $log->debug( "No test for $mime was found" );
+        }
+    }
 
-    my $write_handler;
-    open( $write_handler, ">>", $magic_file ) or die $!;
-    for my $test (@$tests) {
-
+    # traverse tests trees and decide if the tests in a tree must be saved or not
+    my @tests_to_save;
+    for my $test (@filtered_tests){
         # Test only contains a listed MIME type and neither calls or is called by another test
-        if ( $test->{"mime"} && !$test->{"saved"} && !@{ $test->{"use"} } && !@{ $test->{"name"} } ) {
-            print $write_handler $test->{"body"} . "\n";
-            $test->{"saved"} = 1;
-            $saved_tests++;
+        if ( $test->{'has_desired_mime'} && !$test->{'saved'} && !@{ $test->{'use'} } && !@{ $test->{'name'} } ) {
+            push @tests_to_save, $test->{'body'};
+            $test->{'saved'} = 1;
         }
 
         # Test is the root of the tree test.
         # This means that this test calls at least another test (that might call another test etc).
         # We need to check wether or not one (or more) test(s) in the tree starting at the root must be saved, and if it is the case all tests in the tree are saved.
-        if ( @{ $test->{"use"} } && !@{ $test->{"name"} } ) {
-            my ( $save, $discovered ) = _traverse_tests_tree( $test, $named_tests );
+        if ( @{ $test->{'use'} } && !@{ $test->{'name'} } ) {
+            my ( $save, $discovered ) = _traverse_tests_tree( $test, \%named_tests );
 
             if ($save) {
 
                 for my $name ( keys %$discovered ) {
-                    my $called_test = $named_tests->{$name};
+                    my $called_test = $named_tests{$name};
 
-                    if ( !$called_test->{"saved"} ) {
-                        print $write_handler $called_test->{"body"} . "\n";
-                        $called_test->{"saved"} = 1;
-                        $saved_tests++;
+                    if ( !$called_test->{'saved'} ) {
+                        push @tests_to_save, $called_test->{'body'};
+                        $called_test->{'saved'} = 1;
                     }
                 }
 
-                if ( !$test->{"saved"} ) {
-                    print $write_handler $test->{"body"} . "\n";
-                    $test->{"saved"} = 1;
-                    $saved_tests++;
+                if ( !$test->{'saved'} ) {
+                    push @tests_to_save, $test->{'body'};
+                    $test->{'saved'} = 1;
                 }
             }
         }
     }
-    close($write_handler);
 
-    return $saved_tests;
+    my $nbr_tests = @tests_to_save;
+    $log->debug("$nbr_tests tests must be saved");
 
+    return \@tests_to_save;
 }
 
 # _traverse_tests_tree applies BFS on the graph of interconnected tests (test that call each other) and decide if all the tests in the graph
@@ -359,14 +352,14 @@ sub _traverse_tests_tree {
 
     my $save = 0;
 
-    if ( $root->{"mime"} ) {
+    if ( $root->{'has_desired_mime'} ) {
         $save = 1;
     }
 
     my @queue;
     my %discovered;
 
-    for my $sub_name ( @{ $root->{"use"} } ) {
+    for my $sub_name ( @{ $root->{'use'} } ) {
         if ( !defined( $discovered{$sub_name} ) ) {
             $discovered{$sub_name} = 1;
             push @queue, $sub_name;
@@ -379,12 +372,12 @@ sub _traverse_tests_tree {
         my $called_test = $named_tests->{$name};
 
         # Check if we need to save all tests in the graph
-        if ( $called_test->{"mime"} ) {
+        if ( $called_test->{'has_desired_mime'} ) {
             $save = 1;
         }
 
         # Enqueue all children tests that were not traversed yet.
-        for my $sub_name ( @{ $called_test->{"use"} } ) {
+        for my $sub_name ( @{ $called_test->{'use'} } ) {
             if ( !defined( $discovered{$sub_name} ) ) {
                 $discovered{$sub_name} = 1;
                 push @queue, $sub_name;
@@ -394,6 +387,22 @@ sub _traverse_tests_tree {
 
     return ( $save, \%discovered );
 
+}
+
+# _save_magic_file saves the tests to a file
+# It takes as argument:
+# $test_to_save: an array containing the bodies of the tests that we want to save
+# $magic_filename: the path to the magic_filename where we want to save the tests
+sub _save_magic_file {
+    my ($tests_to_save, $magic_filename) = @_;
+    $log->debug("writing tests to $magic_filename");
+
+    open(my $fh, '>>', $magic_filename) or die "could not open $magic_filename to save the tests: $!";
+    for my $test_body (@$tests_to_save){
+        print $fh $test_body . "\n";
+    }
+    close($fh);
+    return;
 }
 
 1;

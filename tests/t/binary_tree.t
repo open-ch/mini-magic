@@ -25,52 +25,53 @@ use MiniMagic;
 sub build_input {
     my $root = {};
     $root->{"body"}  = "";
-    $root->{"mime"}  = "";
+    $root->{"mimes"}  = [];
     $root->{"name"}  = [];
     $root->{"use"}   = [ "level1_1", "level1_2" ];
     $root->{"saved"} = 0;
 
     my $level1_1;
     $level1_1->{"body"}  = "";
-    $level1_1->{"mime"}  = "";
+    $level1_1->{"mimes"}  = [];
     $level1_1->{"name"}  = ["level1_1"];
     $level1_1->{"use"}   = [ "level2_1", "level2_2" ];
     $level1_1->{"saved"} = 0;
 
     my $level1_2;
     $level1_2->{"body"}  = "";
-    $level1_2->{"mime"}  = "";
+    $level1_2->{"mimes"}  = [];
     $level1_2->{"name"}  = ["level1_2"];
     $level1_2->{"use"}   = [ "level2_3", "level2_4" ];
     $level1_2->{"saved"} = 0;
 
     my $level2_1;
     $level2_1->{"body"}  = "";
-    $level2_1->{"mime"}  = "";
+    $level2_1->{"mimes"}  = [];
     $level2_1->{"name"}  = ["level2_1"];
     $level2_1->{"use"}   = [];
     $level2_1->{"saved"} = 0;
 
     my $level2_2;
     $level2_2->{"body"}  = "";
-    $level2_2->{"mime"}  = "";
+    $level2_2->{"mimes"}  = [];
     $level2_2->{"name"}  = ["level2_2"];
     $level2_2->{"use"}   = [];
     $level2_2->{"saved"} = 0;
 
     my $level2_3;
     $level2_3->{"body"}  = "";
-    $level2_3->{"mime"}  = "";
+    $level2_3->{"mimes"}  = [];
     $level2_3->{"name"}  = ["level2_3"];
     $level2_3->{"use"}   = [];
     $level2_3->{"saved"} = 0;
 
     my $level2_4;
     $level2_4->{"body"}  = "";
-    $level2_4->{"mime"}  = "something";
+    $level2_4->{"mimes"}  = ['something'];
     $level2_4->{"name"}  = ["level2_4"];
     $level2_4->{"use"}   = [];
     $level2_4->{"saved"} = 0;
+    $level2_4->{"has_desired_mime"} = 1;
 
     my %named_tests = (
         "level1_1" => $level1_1,
