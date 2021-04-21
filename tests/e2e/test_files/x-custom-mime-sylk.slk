@@ -1,0 +1,6 @@
+ID;P 
+O;E 
+NN;NAuto_open;ER101C1
+C;X1;Y101;EALERT("Macros executed", 2) 
+C;X1;Y102;EHALT() 
+E 

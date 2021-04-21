@@ -1,0 +1,11 @@
+application/ogg
+audio/mp4
+audio/mpeg
+audio/x-aiff
+video/3gpp
+video/mp4
+video/quicktime
+video/webm
+video/x-flv
+video/x-m4v
+video/x-matroska

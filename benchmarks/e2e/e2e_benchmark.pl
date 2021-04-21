@@ -2,7 +2,7 @@
 ###############################################################################
 #
 # e2e_benchmark.pl: benchmark script for the e2e process of compiling a minimal
-# magic DB 
+# magic DB
 #
 # Copyright (c) 2021 Open Systems AG, Switzerland
 # All Rights Reserved.
@@ -14,85 +14,88 @@ use warnings;
 
 use FindBin qw($Bin);
 use lib "$Bin/../../lib";
-use MimeType;
+use MiniMagic;
 use Benchmark qw/cmpthese/;
-use Getopt::Long qw(:config posix_default no_ignore_case);
 use Const::Fast;
+use File::Path;
 
 const my $MIME_LIST_FOLDER => "$Bin/mime-lists";
-const my $SKIP_MEDIA_STREAMS_LIST => "$MIME_LIST_FOLDER/skipmediastreams.txt";
-const my $PGHN_LIST => "$MIME_LIST_FOLDER/pghn.txt";
+const my $THIRTEEN_TESTS   => "$MIME_LIST_FOLDER/13tests.txt";
+const my $FIFTY_FIVE_TESTS => "$MIME_LIST_FOLDER/55tests.txt";
+const my $TMP_FILE         => "$Bin/.tmp";
+const my $MAGDIR           => "$TMP_FILE/Magdir";
+const my $TIME             => 5;
+const my $MAGIC            => "magic";
 
-my $file_cmd = '/bin/file';
-my $out = 'magic';
-my $src = 'Magdir/';
-my $t = -5;
+sub _clean {
 
-# Print command line usage help text
-sub print_help {
-    print "Usage:
-	perl e2e_benchmark.pl [Options]
-
-	OPTIONAL PARAMETERS:
-
-    --file path                     Indicates the path to the file command (default /bin/file)
-    --out path                      Indicates the path to folder where the created magic files are stored (default magics/)
-    --src path                      Indicates the path to the folder containing the MIME type definitions (default Magdir/)
-	--t time                        Indicates the cpu time elapsed (default 5 seconds).
-    -h|--help                       Print this help message
-";
-    exit 1;
+    if ( -d $TMP_FILE ) {
+        rmtree($TMP_FILE) or die "Impossible to delete directory $TMP_FILE: $!";
+    }
 }
 
-# Command-line argument processing
-GetOptions(
-    "file=s"   => \$file_cmd,
-    "help|h"       => \&print_help,
-    "out=s"       => \$out,
-    "src=s"       => \$src,
-    "t=s"        => \$t,
-) or print_help();
+sub get_file_version {
+    my $file_version_out = `file -v`;
 
-
-
-# argument of cmpthese must be negative to correspond to cpu time
-$t = ($t > 0)? -$t : $t;
-
-# Get MIME type lists
-my @skipmediastreams_list;
-open(my $fh, '<', $SKIP_MEDIA_STREAMS_LIST);
-while(my $line = <$fh>){
-    chomp($line);
-    push @skipmediastreams_list, $line;
+    if ( $file_version_out =~ /(file-\d+\.\d+)/ ) {
+        my ($version) = $file_version_out =~ /(\d+\.\d+)/;
+        return $version;
+    }
 }
-close($fh);
-
-my @pghn_list;
-open($fh, '<', $PGHN_LIST);
-while(my $line = <$fh>){
-    chomp($line);
-    push @pghn_list, $line;
-}
-close($fh);
-
-my @all_list = @{MimeType::list_mime_types($src)};
 
 # Function we want to benchmark
-sub compile_db{
+sub compile_db {
     my $mime_list = shift;
-
-    MimeType::create_mini_magic_file( $mime_list, $src, $out);
-    system("$file_cmd -C -m $out");
+    my $suffix    = shift;
+    my $out       = $MAGIC . $suffix;
+    MiniMagic::create_mini_magic_file( $mime_list, $MAGDIR, "$TMP_FILE/$out" );
+    system("file -C -m $out");
 }
 
-cmpthese($t, {
-    "Skip Media Streams" => sub {
-        compile_db(\@skipmediastreams_list);
-    },
-    "PGHN" => sub {
-        compile_db(\@pghn_list);
-    },
-    "ALL" => sub {
-        compile_db(\@all_list);
+my $file_version = get_file_version();
+die "No version for the file command found" unless $file_version;
+
+# Set up temporary directories
+_clean();
+mkdir($TMP_FILE) or die "Impossible to create directory $TMP_FILE: $!";
+
+# Get all MIME types version 5.39
+MiniMagic::download_magic_files( $MAGDIR, $file_version );
+
+# Get MIME type lists
+my @thirteen_list;
+open( my $fh, '<', $THIRTEEN_TESTS );
+while ( my $line = <$fh> ) {
+    chomp($line);
+    push @thirteen_list, $line;
+}
+close($fh);
+
+my @fifty_five_list;
+open( $fh, '<', $FIFTY_FIVE_TESTS );
+while ( my $line = <$fh> ) {
+    chomp($line);
+    push @fifty_five_list, $line;
+}
+close($fh);
+
+my @all_list = @{ MiniMagic::list_mime_types($MAGDIR) };
+
+chdir($TMP_FILE);
+cmpthese(
+    -$TIME,
+    {
+        "13 Tests" => sub {
+            compile_db( \@thirteen_list, "13" );
+        },
+        "55 Tests" => sub {
+            compile_db( \@fifty_five_list, "55" );
+        },
+        "1035 Tests (all)" => sub {
+            compile_db( \@all_list, "all" );
+        }
     }
-})
+  );
+
+chdir($Bin);
+_clean();
