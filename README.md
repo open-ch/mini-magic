@@ -132,6 +132,6 @@ modules:
 - File::Slurper
 - File::Copy::Recursive
 
-## License
+## License and code of conduct
 
-[Apache License 2.0](LICENSE)
+[Apache License 2.0](LICENSE) and [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md)
