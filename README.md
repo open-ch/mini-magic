@@ -30,7 +30,7 @@ and remove all the unnecessary tests for the detection of the MIME types we are 
 See the [Install](#install) section for more details on the requirements of our tools. 
 ### CLI
 
-With our `CLI tool`, you can quickly create a minimal magic file called `mini_magic` containing 
+With our [CLI tool](bin), you can quickly create a minimal magic file called `mini_magic` containing 
 only the necessary tests to detect `application/pdf` and `application/x-executable` from the magic
 files located at `Magdir`:
 
@@ -56,7 +56,7 @@ For more details on the CLI capabilities and options use the flag `--help`.
 
 ### Perl module
 
-We also provide a `perl module` called `MiniMagic`. You can achieve the same
+We also provide a [perl module](lib) called `MiniMagic`. You can achieve the same
 result as the CLI tool with the following code snippet:
 
 ```perl
