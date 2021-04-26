@@ -9,9 +9,6 @@
 # This test compares the results of the file command with a minimal magic db against
 # the default one.
 #
-# Know issue: with the version 5.36 of libmagic 2 test cases are failing,
-# application/octet-stream and application/x-chrome-extension.
-#
 ###############################################################################
 
 use v5.28;
