@@ -28,6 +28,7 @@ and remove all the unnecessary tests for the detection of the MIME types we are 
 ## Usage
 
 See the [Install](#install) section for more details on the requirements of our tools. 
+
 ### CLI
 
 With our [CLI tool](bin), you can quickly create a minimal magic file called `mini_magic` containing 
@@ -74,6 +75,23 @@ create_mini_magic_file($mime_types, $src_dir, $magic_name);
 ```
 
 See the [API](#api) section for more details about the module.
+
+### Docker
+
+Finally, for those who do not want to deal with the dependencies, we dockerized the project.
+To build the image you can simply run the following command from the root of the project:
+
+```
+# mini-magic is the name of the new docker image
+docker build -t mini-magic . 
+```
+
+Once the build is done, you can run the following command to create the same magic file as in the previous examples:
+
+```
+docker run -v "$(pwd):/data" mini-magic --mime-types application/pdf,application/x-executable --magic-filename /data/mini_magic
+```
+
 
 ## API
 
