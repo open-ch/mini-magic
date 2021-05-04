@@ -78,7 +78,7 @@ See the [API](#api) section for more details about the module.
 
 ### Docker
 
-Finally, for those who do not want to deal with the dependencies, we dockerized the project.
+Finally, for those who do not want to deal with the dependencies, we created a docker image for this project.
 To build the image you can simply run the following command from the root of the project:
 
 ```
