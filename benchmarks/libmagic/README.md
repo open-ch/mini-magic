@@ -1,10 +1,10 @@
-# benchmarking libmagic with minimal magic files
+# Benchmarking libmagic with minimal magic files
 
 To assess the performance improvement gained by using a minimal magic file, we created the benchmark
 `main_with_bench.c`. This benchmark measures the time needed to find the MIME type of the file `test.pdf` with
 a given compiled magic file.
 
-## how to run it?
+## Usage
 
 The program can be compiled with the following command:
 
@@ -18,12 +18,12 @@ Once the the program has been compiled, you can run it with the (mandatory) argu
 compiled magic file and the number of iterations with the following command:
 
 ```bash
-./bench magic_files/magic.mgc 50000
+./bench <path to magic file> <number of iterations>
 ```
 
 This gives you the mean, the variance and the standard deviation of the measurements. 
 
-## magic files
+## Magic files
 
 In `magic_files/` we provide 3 tests magic files:
 - magic.mgc: the default compiled magic file for the version 5.39 of libmagic
@@ -43,4 +43,4 @@ We gathered the results of the benchmarks in th following table:
 | middle.mgc | 1.831800e-04 |   5.081674e-10 | 2.254257e-05 |
 | small.mgc  | 1.734893e-04 |   2.615102e-10 | 1.617128e-05 |
 
-Those results were obtained with `1000000` iterations on a `13-inch 2017 MacBook Pro` with a `3.1 GHz Dual-Core Intel Core i5`.
+Those results were obtained with `1000000` iterations on a `13-inch 2017 MacBook Pro` with a `3.1 GHz Dual-Core Intel Core i5` and `16 Gb` of RAM.
