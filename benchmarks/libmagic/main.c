@@ -88,6 +88,19 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	printf("[...] opening output file\n");
+	FILE *fptr;
+	fptr = fopen("output", "w");
+
+	if (fptr == NULL)
+	{
+		printf("could not create output file\n");
+		return 1;
+	}
+
+	fprintf(fptr, "|File|Mean[s]|Variance[s ^ 2]|STD[s]|\n");
+	fprintf(fptr, "|---|---|---|---|\n");
+
 	// loop though the test files
 	DIR *files_dir;
 	struct dirent *file;
@@ -123,19 +136,22 @@ int main(int argc, char *argv[])
 					double end_time = (double)clock() / CLOCKS_PER_SEC;
 					measures[i] = end_time - start_time;
 				}
-
+				double avg = mean(measures, nbr_iteration);
+				double v = var(measures, nbr_iteration);
+				double stdev = std(measures, nbr_iteration);
 				printf("### %s ###\n", path_to_file);
 				printf("MIME: %s\n", description);
-				printf("MEAN: %e s.\n", mean(measures, nbr_iteration));
-				printf("VARIANCE: %e s^2.\n", var(measures, nbr_iteration));
-				printf("STD: %e s.\n\n", std(measures, nbr_iteration));
+				printf("MEAN: %e s.\n", avg);
+				printf("VARIANCE: %e s^2.\n", v);
+				printf("STD: %e s.\n\n", stdev);
+				fprintf(fptr, "|%s|%e|%e|%e|\n", file->d_name, avg, v, stdev);
 
 				free(measures);
 			}
 		}
 		closedir(files_dir);
 	}
-
+	fclose(fptr);
 	magic_close(magic_cookie);
 
 	return 0;
