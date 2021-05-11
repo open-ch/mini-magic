@@ -1,7 +1,7 @@
 # Benchmarking libmagic with minimal magic files
 
 To assess the performance improvement gained by using a minimal magic file, we created the benchmark
-`main_with_bench.c`. This benchmark measures the time needed to find the MIME type of the file `test.pdf` with
+`main.c`. This benchmark measures the time needed to find the MIME type of a file with
 a given compiled magic file.
 
 ## Usage
@@ -9,19 +9,19 @@ a given compiled magic file.
 The program can be compiled with the following command:
 
 ```bash
-gcc main_with_bench.c -lmagic -o bench
+gcc main.c -lmagic -o bench
 ```
 
 This assumes that you have `libmagic` installed on you computer.
 
 Once the the program has been compiled, you can run it with the (mandatory) arguments specifying the path to the
-compiled magic file and the number of iterations with the following command:
+compiled magic file, the path to the directory conatining the test files and the number of iterations with the following command:
 
 ```bash
-./bench <path to magic file> <number of iterations>
+./bench <path to magic file> <path to test files dir> <number of iterations>
 ```
 
-This gives you the mean, the variance and the standard deviation of the measurements. 
+This gives you the mean, the variance and the standard deviation of the measurements (per file). It also outputs a file containing those values in a markdown table format. 
 
 ## Magic files
 
@@ -38,14 +38,13 @@ We gathered the results of the benchmarks in th following tables. Those results 
 
 ### Comparison
 
-We focus here on the file `application-msword.doc` as it is detected by all compiled magic files. The results are similar in this scenario for the other files. There average time of the benchmarks for each magic file is:
+We focus here on the file `application-pdf.pdf` as it is detected by all compiled magic files. The results are similar in this scenario for the other files. There average time of the benchmarks for each magic file is:
 
 | magic.mgc    | middle.mgc   | small.mgc    |
 | ------------ | ------------ | ------------ |
-| 4.326248e-04 | 2.402384e-04 | 1.136904e-04 |
+| 1.695864e-04 | 1.521896e-04 | 1.457780e-04 |
 
-We can easily see that the minimal magic file is around **4 times** faster than the default one and **twice as fast** as the minimal magic file containing all the MIME types.
-We can also see that that the minimal magic database is **twice as fast** as the default magic file. If your goal is only to detect the MIME types, this improvements is quiet big.
+We can see that the average gets smaller and smaller. The smallest minimal magic file is **14.45%** faster than the default one.
 
 ### magic.mgc
 
