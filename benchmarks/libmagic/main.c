@@ -1,17 +1,52 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <magic.h>
+#include <time.h>
+#include <stdlib.h>
+#include <math.h>
+#include <dirent.h>
+#include <string.h>
 
-//Compile it with: gcc -g main.c -lmagic -o bench
-//Compile it with -pg for profiler
-int main(int argc, const char *argv[])
+#define MAX_PATH_LENGTH 300
+
+double mean(double *measures, size_t length)
 {
-	if (argc != 2)
+	double sum = 0;
+
+	for (size_t i = 0; i < length; i++)
 	{
-		printf("usage: bench /path/to/magic/db\n");
-		return 1;
+		sum += measures[i];
 	}
 
+	return sum / length;
+}
+
+double var(double *measures, size_t length)
+{
+	double avg = mean(measures, length);
+	double sum_var = 0;
+
+	for (size_t i = 0; i < length; i++)
+	{
+		sum_var += (measures[i] - avg) * (measures[i] - avg);
+	}
+
+	return sum_var / length;
+}
+
+double std(double *measures, size_t length)
+{
+	return sqrt(var(measures, length));
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc != 4)
+	{
+		printf("usage: bench /path/to/magic/db /path/to/test/files nbr_it\n");
+		return 1;
+	}
+	printf("[...] checking args\n");
 	const char *filename = argv[1];
 
 	if (access(filename, F_OK))
@@ -20,6 +55,16 @@ int main(int argc, const char *argv[])
 		return 1;
 	}
 
+	const char *path_to_files = argv[2];
+	if (access(path_to_files, F_OK))
+	{
+		printf("%s does not exist\n", path_to_files);
+		return 1;
+	}
+
+	size_t nbr_iteration = (size_t)atoi(argv[3]);
+
+	printf("[...] creating magic cookie\n");
 	/*
 	Creates a magic cookie pointer specifying that the other
 	functions should either return a MIME type string or return
@@ -34,6 +79,7 @@ int main(int argc, const char *argv[])
 		return 1;
 	}
 
+	printf("[...] loading magic DB\n");
 	// load the magic file/database
 	if (magic_load(magic_cookie, filename) != 0)
 	{
@@ -42,11 +88,54 @@ int main(int argc, const char *argv[])
 		return 1;
 	}
 
-	// Benchmark getting MIME types
-	const char *test_file = "test.pdf";
-	const char *description = magic_file(magic_cookie, test_file);
+	// loop though the test files
+	DIR *files_dir;
+	struct dirent *file;
+	size_t count = 0;
+	printf("[...] starting benchmarks\n");
+	if ((files_dir = opendir(path_to_files)))
+	{
+		while ((file = readdir(files_dir)))
+		{
+			count++;
+			//skipping . and ..
+			if (count > 2)
+			{
+				// Allocate memory for the measurement
+				double *measures = (double *)malloc(nbr_iteration * sizeof(double));
+				if (measures == NULL)
+				{
+					printf("could not allocate memory for the measurements\n");
+					return 1;
+				}
 
-	printf("%s\n", description);
+				char path_to_file[MAX_PATH_LENGTH];
+				strncpy(path_to_file, path_to_files, MAX_PATH_LENGTH);
+				strncat(path_to_file, "/", MAX_PATH_LENGTH);
+				strncat(path_to_file, file->d_name, MAX_PATH_LENGTH);
+
+				// Repeat the process of finding the MIME type and save the time differences
+				const char *description;
+				for (size_t i = 0; i < nbr_iteration; i++)
+				{
+					double start_time = (double)clock() / CLOCKS_PER_SEC;
+					description = magic_file(magic_cookie, path_to_file);
+					double end_time = (double)clock() / CLOCKS_PER_SEC;
+					measures[i] = end_time - start_time;
+				}
+
+				printf("### %s ###\n", path_to_file);
+				printf("MIME: %s\n", description);
+				printf("MEAN: %e s.\n", mean(measures, nbr_iteration));
+				printf("VARIANCE: %e s^2.\n", var(measures, nbr_iteration));
+				printf("STD: %e s.\n\n", std(measures, nbr_iteration));
+
+				free(measures);
+			}
+		}
+		closedir(files_dir);
+	}
+
 	magic_close(magic_cookie);
 
 	return 0;

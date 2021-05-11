@@ -1,7 +1,0 @@
-FROM gcc:4.9
-WORKDIR /benchs
-COPY . .
-
-RUN gcc main.c -lmagic -o bench -pg
-
-ENTRYPOINT [ "./bench" ]
