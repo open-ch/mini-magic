@@ -47,7 +47,7 @@ The averages of the benchmarks and the standard deviations for each magic file a
 | middle.mgc | 9.792393e-04 | 1.582954e-03 |
 | small.mgc  | 9.129508e-05 | 8.813377e-05 |
 
-We can see that the overall mean of the benchmarks decrease by a factor 10 for each different magic file. This decrease is inversely proportional to the increase of the numbers of tests in each magic file. Moreover, we can see that the standard is almost as big the mean.
+We can see that the overall mean of the benchmarks decrease by a factor 10 for each different magic file. This decrease is inversely proportional to the increase of the numbers of tests in each magic file. Moreover, we can see that the standard deviation is almost as big the mean.
 This is due to the fact that the time to detect a MIME type is heavily impacted by the number of tests that must be performed for the detection. This ends in the presence of outliers that are way bigger or smaller than the average. 
 
 #### All results
