@@ -8,6 +8,7 @@
 #include <string.h>
 
 #define MAX_PATH_LENGTH 300
+#define SIZE_AVGS 60
 
 double mean(double *measures, size_t length)
 {
@@ -95,6 +96,7 @@ int main(int argc, char *argv[])
 	if (fptr == NULL)
 	{
 		printf("could not create output file\n");
+		magic_close(magic_cookie);
 		return 1;
 	}
 
@@ -106,6 +108,17 @@ int main(int argc, char *argv[])
 	struct dirent *file;
 	size_t count = 0;
 	printf("[...] starting benchmarks\n");
+
+	//alloc memory to keep track of the averages
+	double *averages = malloc(SIZE_AVGS * sizeof(double));
+	if (averages == NULL)
+	{
+		printf("could not allocate memory for averages\n");
+		fclose(fptr);
+		magic_close(magic_cookie);
+		return 1;
+	}
+
 	if ((files_dir = opendir(path_to_files)))
 	{
 		while ((file = readdir(files_dir)))
@@ -115,10 +128,14 @@ int main(int argc, char *argv[])
 			if (count > 2)
 			{
 				// Allocate memory for the measurement
-				double *measures = (double *)malloc(nbr_iteration * sizeof(double));
+				double *measures = malloc(nbr_iteration * sizeof(double));
 				if (measures == NULL)
 				{
 					printf("could not allocate memory for the measurements\n");
+					free(averages);
+					fclose(fptr);
+					magic_close(magic_cookie);
+					closedir(files_dir);
 					return 1;
 				}
 
@@ -137,6 +154,8 @@ int main(int argc, char *argv[])
 					measures[i] = end_time - start_time;
 				}
 				double avg = mean(measures, nbr_iteration);
+				averages[count - 3] = avg;
+
 				double v = var(measures, nbr_iteration);
 				double stdev = std(measures, nbr_iteration);
 				printf("### %s ###\n", path_to_file);
@@ -151,8 +170,13 @@ int main(int argc, char *argv[])
 		}
 		closedir(files_dir);
 	}
+
+	printf("AVERAGE OF MEANS: %e.\n", mean(averages, count - 2));
+	printf("STD OF MEANS: %e.\n", std(averages, count - 2));
+
 	fclose(fptr);
 	magic_close(magic_cookie);
+	free(averages);
 
 	return 0;
 }

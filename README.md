@@ -25,6 +25,10 @@ when the goal is to identify only a subset of MIME types.** To achieve our goal,
 we take the [official magic files](https://github.com/file/file/tree/master/magic/Magdir)
 and remove all the unnecessary tests for the detection of the MIME types we are interested in.
 
+We [benchmarked](#benchmarks and tests) about 60 file detections with different magic files. We found out that using a minimal
+magic file containing 35 tests **speeds up the detection by two order of magnitude** compared to the default
+magic file.
+
 ## Usage
 
 See the [Install](#install) section for more details on the requirements of our tools. 
@@ -106,7 +110,7 @@ the directory `$src_dir`.
 ### benchmarks and tests
 
 - [Tests](./tests) - unit and e2e tests
-- [Benchmark](./benchmarks) - module and e2e benchmarks
+- [Benchmark](./benchmarks) - libmagic, module and e2e benchmarks.
 
 All tests and benchmarks can be run as follow:
 
