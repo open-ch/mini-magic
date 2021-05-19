@@ -25,7 +25,7 @@ when the goal is to identify only a subset of MIME types.** To achieve our goal,
 we take the [official magic files](https://github.com/file/file/tree/master/magic/Magdir)
 and remove all the unnecessary tests for the detection of the MIME types we are interested in.
 
-We [benchmarked](#benchmarks and tests) about 60 file detections with different magic files. We found out that using a minimal
+We [benchmarked](#benchmarks-and-tests) about 60 file detections with different magic files. We found out that using a minimal
 magic file containing 35 tests **speeds up the detection by two order of magnitude** compared to the default
 magic file.
 
