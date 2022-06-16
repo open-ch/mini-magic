@@ -316,7 +316,7 @@ sub _filter_tests {
 
             if ($save) {
 
-                for my $name ( keys %$discovered ) {
+                for my $name ( sort keys %$discovered ) {
                     my $called_test = $named_tests{$name};
 
                     if ( !$called_test->{'saved'} ) {
